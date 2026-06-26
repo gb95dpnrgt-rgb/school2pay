@@ -12,7 +12,6 @@ export default withSentryConfig(nextConfig, {
   silent: !process.env.CI,
   // Upload source maps in CI/production builds only
   widenClientFileUpload: true,
-  hideSourceMaps: true,
   disableLogger: true,
   automaticVercelMonitors: true,
 });
