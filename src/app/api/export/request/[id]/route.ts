@@ -71,6 +71,9 @@ export async function GET(
     }> | null;
   };
 
+  // Fetch audit log for these assignment IDs
+  const assignmentIds = (rows ?? []).map((r) => r.id);
+
   // Fetch consent form + responses for this request
   const { data: consentFormRow } = await (admin.from("consent_forms") as any)
     .select("id, consent_fields(key, label, sort_order)")
@@ -98,9 +101,6 @@ export async function GET(
 
   const consentFields = (consentFormRow?.consent_fields ?? [])
     .sort((a, b) => a.sort_order - b.sort_order);
-
-  // Fetch audit log for these assignment IDs
-  const assignmentIds = (rows ?? []).map((r) => r.id);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: auditRows } = assignmentIds.length > 0
     ? await (admin.from("assignment_audit_log") as any)
