@@ -71,6 +71,34 @@ export async function GET(
     }> | null;
   };
 
+  // Fetch consent form + responses for this request
+  const { data: consentFormRow } = await (admin.from("consent_forms") as any)
+    .select("id, consent_fields(key, label, sort_order)")
+    .eq("payment_request_id", id)
+    .maybeSingle() as {
+      data: { id: string; consent_fields: Array<{ key: string; label: string; sort_order: number }> } | null
+    };
+
+  // Map assignmentId → latest active consent response
+  const consentResponseMap = new Map<string, { responses: Record<string, unknown>; guardian_name_signed: string; signed_at: string; withdrawn_at: string | null }>();
+  if (consentFormRow && assignmentIds.length > 0) {
+    const { data: consentRows } = await (admin.from("consent_responses") as any)
+      .select("assignment_id, responses, guardian_name_signed, signed_at, withdrawn_at")
+      .eq("consent_form_id", consentFormRow.id)
+      .in("assignment_id", assignmentIds)
+      .order("created_at", { ascending: false }) as {
+        data: Array<{ assignment_id: string; responses: Record<string, unknown>; guardian_name_signed: string; signed_at: string; withdrawn_at: string | null }> | null
+      };
+    for (const r of consentRows ?? []) {
+      if (!consentResponseMap.has(r.assignment_id)) {
+        consentResponseMap.set(r.assignment_id, r);
+      }
+    }
+  }
+
+  const consentFields = (consentFormRow?.consent_fields ?? [])
+    .sort((a, b) => a.sort_order - b.sort_order);
+
   // Fetch audit log for these assignment IDs
   const assignmentIds = (rows ?? []).map((r) => r.id);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -92,6 +120,10 @@ export async function GET(
     auditSummary.set(a.assignment_id, prev ? `${prev}; ${entry}` : entry);
   }
 
+  const consentHeaders = consentFields.length > 0
+    ? ["Consent status", "Signed by", "Signed at", ...consentFields.map((f) => f.label)]
+    : [];
+
   const headers = [
     "Student first name",
     "Year group",
@@ -100,6 +132,7 @@ export async function GET(
     "Amount paid (£)",
     "Status",
     "Audit notes",
+    ...consentHeaders,
   ];
 
   const csvRows = (rows ?? []).map((r) => {
@@ -107,7 +140,8 @@ export async function GET(
       .map((gs) => gs.guardians?.email)
       .filter(Boolean)
       .join("; ");
-    return [
+
+    const base = [
       r.students.first_name,
       r.students.year_group,
       guardianEmails,
@@ -116,6 +150,23 @@ export async function GET(
       r.status,
       auditSummary.get(r.id) ?? "",
     ];
+
+    if (consentFields.length === 0) return base;
+
+    const cr = consentResponseMap.get(r.id);
+    if (!cr) {
+      return [...base, "Pending", "", "", ...consentFields.map(() => "")];
+    }
+    const consentStatus = cr.withdrawn_at ? "Withdrawn" : "Consented";
+    const signedAt = cr.signed_at
+      ? new Date(cr.signed_at).toLocaleDateString("en-GB")
+      : "";
+    const fieldValues = consentFields.map((f) => {
+      const val = cr.responses[f.key];
+      if (Array.isArray(val)) return val.join(", ");
+      return val != null ? String(val) : "";
+    });
+    return [...base, consentStatus, cr.guardian_name_signed, signedAt, ...fieldValues];
   });
 
   const safeName = payReq.title.replace(/[^a-z0-9]/gi, "_").toLowerCase();

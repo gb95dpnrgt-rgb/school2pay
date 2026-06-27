@@ -11,6 +11,7 @@ import RemindUnpaidButton from "./RemindUnpaidButton";
 import AssignmentActions from "./AssignmentActions";
 import RefundButton from "./RefundButton";
 import CloseRequestButton from "./CloseRequestButton";
+import ConsentResponseModal from "./ConsentResponseModal";
 import SaveTemplateButton from "../SaveTemplateButton";
 
 const PAGE_SIZE = 20;
@@ -169,24 +170,41 @@ export default async function RequestDetailPage({
 
   // ── Consent form (optional) ──────────────────────────────────────────────
   const { data: consentFormRow } = await (admin.from("consent_forms") as any)
-    .select("id, type, requires_consent_before_payment")
+    .select("id, type, requires_consent_before_payment, consent_fields(key, label, field_type, sort_order)")
     .eq("payment_request_id", id)
-    .maybeSingle() as { data: { id: string; type: string; requires_consent_before_payment: boolean } | null };
+    .maybeSingle() as {
+      data: {
+        id: string; type: string; requires_consent_before_payment: boolean;
+        consent_fields: Array<{ key: string; label: string; field_type: string; sort_order: number }>;
+      } | null
+    };
 
-  // Map assignmentId → consent status
+  const consentFields = (consentFormRow?.consent_fields ?? [])
+    .sort((a, b) => a.sort_order - b.sort_order);
+
+  type ConsentResponseRow = {
+    assignment_id: string;
+    id: string;
+    responses: Record<string, unknown>;
+    guardian_name_signed: string;
+    signed_at: string;
+    withdrawn_at: string | null;
+  };
+
+  // Map assignmentId → latest consent response (full data)
   const consentByAssignment = new Map<string, "consented" | "withdrawn" | null>();
+  const consentResponseByAssignment = new Map<string, ConsentResponseRow>();
+
   if (consentFormRow && assignmentIds.length > 0) {
     const { data: responses } = await (admin.from("consent_responses") as any)
-      .select("assignment_id, withdrawn_at, signed_at")
+      .select("id, assignment_id, responses, guardian_name_signed, signed_at, withdrawn_at")
       .eq("consent_form_id", consentFormRow.id)
       .in("assignment_id", assignmentIds)
-      .order("created_at", { ascending: false }) as {
-        data: Array<{ assignment_id: string; withdrawn_at: string | null; signed_at: string }> | null;
-      };
-    // Take latest response per assignment
+      .order("created_at", { ascending: false }) as { data: ConsentResponseRow[] | null };
     for (const r of responses ?? []) {
       if (!consentByAssignment.has(r.assignment_id)) {
         consentByAssignment.set(r.assignment_id, r.withdrawn_at ? "withdrawn" : "consented");
+        consentResponseByAssignment.set(r.assignment_id, r);
       }
     }
   }
@@ -414,9 +432,20 @@ export default async function RequestDetailPage({
                           <td className="px-4 py-3 text-xs">
                             {(() => {
                               const cs = consentByAssignment.get(asgn.id) ?? null;
-                              if (cs === "consented") return <span className="inline-flex items-center gap-1 text-green-700 font-medium">✓ Consented</span>;
-                              if (cs === "withdrawn") return <span className="text-red-500">Withdrawn</span>;
-                              return <span className="text-gray-300">Pending</span>;
+                              const cr = consentResponseByAssignment.get(asgn.id) ?? null;
+                              return (
+                                <div className="flex flex-col gap-1">
+                                  {cs === "consented" && <span className="text-green-700 font-medium">✓ Consented</span>}
+                                  {cs === "withdrawn" && <span className="text-red-500">Withdrawn</span>}
+                                  {cs === null && <span className="text-gray-300">Pending</span>}
+                                  <ConsentResponseModal
+                                    studentName={student.first_name}
+                                    fields={consentFields}
+                                    response={cr}
+                                    consentStatus={cs}
+                                  />
+                                </div>
+                              );
                             })()}
                           </td>
                         )}
