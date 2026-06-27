@@ -167,6 +167,30 @@ export default async function RequestDetailPage({
   }
   const totalPages = Math.ceil(totalRows / PAGE_SIZE);
 
+  // ── Consent form (optional) ──────────────────────────────────────────────
+  const { data: consentFormRow } = await (admin.from("consent_forms") as any)
+    .select("id, type, requires_consent_before_payment")
+    .eq("payment_request_id", id)
+    .maybeSingle() as { data: { id: string; type: string; requires_consent_before_payment: boolean } | null };
+
+  // Map assignmentId → consent status
+  const consentByAssignment = new Map<string, "consented" | "withdrawn" | null>();
+  if (consentFormRow && assignmentIds.length > 0) {
+    const { data: responses } = await (admin.from("consent_responses") as any)
+      .select("assignment_id, withdrawn_at, signed_at")
+      .eq("consent_form_id", consentFormRow.id)
+      .in("assignment_id", assignmentIds)
+      .order("created_at", { ascending: false }) as {
+        data: Array<{ assignment_id: string; withdrawn_at: string | null; signed_at: string }> | null;
+      };
+    // Take latest response per assignment
+    for (const r of responses ?? []) {
+      if (!consentByAssignment.has(r.assignment_id)) {
+        consentByAssignment.set(r.assignment_id, r.withdrawn_at ? "withdrawn" : "consented");
+      }
+    }
+  }
+
   // Distinct year groups sorted naturally
   const yearGroups = [
     ...new Set(
@@ -281,6 +305,26 @@ export default async function RequestDetailPage({
           </div>
         </div>
 
+        {/* ── Consent summary ─────────────────────────────────────────────── */}
+        {consentFormRow && (() => {
+          const consentedCount = [...consentByAssignment.values()].filter((v) => v === "consented").length;
+          const withdrawnCount = [...consentByAssignment.values()].filter((v) => v === "withdrawn").length;
+          const pendingCount = totalStudents - consentedCount - withdrawnCount;
+          return (
+            <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 flex flex-wrap gap-6 text-sm">
+              <div>
+                <p className="text-xs text-amber-600 font-semibold uppercase tracking-wide">Consent form</p>
+                <p className="text-xs text-amber-700 mt-0.5 capitalize">{consentFormRow.type.replace("_", " ")}{consentFormRow.requires_consent_before_payment && " · required before payment"}</p>
+              </div>
+              <div className="flex gap-6">
+                <div><p className="text-lg font-bold text-green-700">{consentedCount}</p><p className="text-xs text-gray-500">Consented</p></div>
+                <div><p className="text-lg font-bold text-amber-700">{pendingCount}</p><p className="text-xs text-gray-500">Pending</p></div>
+                {withdrawnCount > 0 && <div><p className="text-lg font-bold text-red-600">{withdrawnCount}</p><p className="text-xs text-gray-500">Withdrawn</p></div>}
+              </div>
+            </div>
+          );
+        })()}
+
         {/* ── Filters + chase action ───────────────────────────────────────── */}
         <div className="flex flex-wrap items-center gap-3 justify-between">
           <Suspense>
@@ -326,6 +370,7 @@ export default async function RequestDetailPage({
                     <th className="px-4 py-3 text-right">Due (gross)</th>
                     <th className="px-4 py-3 text-right">Paid (gross)</th>
                     <th className="px-4 py-3 text-left">Status</th>
+                    {consentFormRow && <th className="px-4 py-3 text-left">Consent</th>}
                     <th className="px-4 py-3 text-left">Guardian</th>
                     <th className="px-4 py-3 text-left">Last email</th>
                     <th className="px-4 py-3 text-left">Actions / audit</th>
@@ -365,6 +410,16 @@ export default async function RequestDetailPage({
                         <td className="px-4 py-3">
                           <StatusBadge status={asgn.status} />
                         </td>
+                        {consentFormRow && (
+                          <td className="px-4 py-3 text-xs">
+                            {(() => {
+                              const cs = consentByAssignment.get(asgn.id) ?? null;
+                              if (cs === "consented") return <span className="inline-flex items-center gap-1 text-green-700 font-medium">✓ Consented</span>;
+                              if (cs === "withdrawn") return <span className="text-red-500">Withdrawn</span>;
+                              return <span className="text-gray-300">Pending</span>;
+                            })()}
+                          </td>
+                        )}
                         <td className="px-4 py-3 text-xs text-gray-500">
                           {firstGuardian ? (
                             <div className="flex flex-col gap-0.5">

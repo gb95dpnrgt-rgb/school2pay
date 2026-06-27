@@ -3,6 +3,29 @@
 
 ---
 
+## Phase 12 — Digital consent forms (added 2026-06-27)
+
+### GDPR — Special category data in `consent_responses.responses`
+
+Medical conditions, dietary requirements, medication details, and GP info collected via consent forms are **special category data under UK GDPR Art. 9**. The following steps must be completed before processing any real parent data:
+
+1. **DPA update** — amend your Data Processing Agreement to cover health/dietary data.
+2. **ROPA entry** — add an entry to your Record of Processing Activities for consent responses.
+3. **Privacy notice** — update `/privacy` page to explicitly state what medical data is collected, why, who sees it, and for how long.
+4. **Retention policy** — `consent_responses` table comment documents a 1-year retention period post-trip `due_date`. **Confirm this period with your DPO before go-live.** The automated purge (pg_cron or Edge Function) has not been implemented; this must be either automated or performed as a documented manual step on a schedule.
+5. **Legal basis** — consent under Art. 9(2)(a) is used here (parent explicitly ticks/signs). Ensure withdrawal of consent is honoured operationally (school receives notification, child excluded from trip if needed).
+
+### Consent form manual testing checklist
+
+- [ ] Create a new request with consent form attached — verify `consent_forms` + `consent_fields` rows created in Supabase
+- [ ] Open parent pay link — verify consent fields appear before or alongside payment
+- [ ] Submit consent with `requires_consent_before_payment = true` — verify payment button blocked until consent given
+- [ ] Withdraw consent — verify `withdrawn_at` is set, row not deleted, payment gate re-applied
+- [ ] Two children, one guardian — verify each child's consent tracked independently
+- [ ] Request with no consent form — verify pay page unchanged
+
+---
+
 ## CRITICAL
 
 ### C1 — Double-payment race: two parents can pay the same assignment concurrently

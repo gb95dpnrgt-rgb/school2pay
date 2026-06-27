@@ -78,6 +78,37 @@ export async function createPaymentRequest(formData: FormData) {
     if (assignErr) throw new Error(assignErr.message);
   }
 
+  // ── Consent form (optional) ─────────────────────────────────────────────────
+  if (formData.get("consent_enabled") === "on") {
+    const consentType = (formData.get("consent_type") as string) || "one_off";
+    const requiresBefore = formData.get("consent_requires_before_payment") === "on";
+    const fieldsJson = formData.get("consent_fields") as string;
+
+    const { data: form, error: formErr } = await (admin.from("consent_forms") as any).insert({
+      payment_request_id: req.id,
+      type: consentType,
+      requires_consent_before_payment: requiresBefore,
+    }).select("id").single();
+
+    if (!formErr && form && fieldsJson) {
+      try {
+        const fields: Array<{ key: string; label: string; field_type: string; required: boolean; sort_order: number }> = JSON.parse(fieldsJson);
+        const rows = fields.map((f, i) => ({
+          consent_form_id: form.id,
+          key: f.key,
+          label: f.label,
+          field_type: f.field_type,
+          required: f.required,
+          sort_order: f.sort_order ?? i,
+        }));
+        await (admin.from("consent_fields") as any).insert(rows);
+      } catch {
+        // non-fatal: consent form created but fields failed to parse
+        console.error("Failed to parse consent fields");
+      }
+    }
+  }
+
   // Fire-and-forget: send emails to guardians (do not block redirect on email delivery)
   notifyGuardians(req.id).catch((err) => console.error("Email notification failed:", err));
 

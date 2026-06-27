@@ -4,6 +4,7 @@ import { logout } from "@/app/login/actions";
 import { createPaymentRequest } from "./actions";
 import TargetAndFees from "./TargetAndFees";
 import TemplateLoader from "./TemplateLoader";
+import ConsentToggle from "./ConsentToggle";
 
 export default async function NewRequestPage() {
   const supabase = await createClient();
@@ -102,6 +103,8 @@ export default async function NewRequestPage() {
               </p>
             </div>
           </div>
+
+          <ConsentToggle />
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Due date</label>

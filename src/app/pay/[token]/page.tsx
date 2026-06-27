@@ -1,9 +1,9 @@
 import { notFound } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
 import { verifyMagicToken } from "@/lib/magic-link";
-import { formatPence } from "@/lib/fees";
 import type { Database } from "@/lib/supabase/types";
-import PaymentSelector from "./PaymentSelector";
+import PayWithConsent from "./PayWithConsent";
+import type { ConsentFormData } from "./ConsentForm";
 
 function getAdmin() {
   return createClient<Database>(
@@ -24,43 +24,33 @@ type Assignment = {
 export default async function PayPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
 
-  // Verify JWT — throws if expired or tampered
   let payload: { guardianId: string; paymentRequestId: string };
   try {
     payload = await verifyMagicToken(decodeURIComponent(token));
   } catch {
-    return (
-      <ExpiredPage />
-    );
+    return <ExpiredPage />;
   }
 
   const admin = getAdmin();
 
-  // Fetch guardian
-  const { data: guardian } = await admin
-    .from("guardians")
-    .select("id, email")
-    .eq("id", payload.guardianId)
-    .single();
+  const [guardianResult, reqResult] = await Promise.all([
+    admin.from("guardians").select("id, email").eq("id", payload.guardianId).single(),
+    (admin.from("payment_requests") as any)
+      .select("id, title, description, due_date, schools(name), allow_partial")
+      .eq("id", payload.paymentRequestId)
+      .single(),
+  ]);
 
+  const guardian = guardianResult.data;
   if (!guardian) notFound();
 
-  // Fetch payment request + school
-  const { data: req } = await admin
-    .from("payment_requests")
-    .select("id, title, description, due_date, schools(name), allow_partial")
-    .eq("id", payload.paymentRequestId)
-    .single() as {
-      data: {
-        id: string; title: string; description: string | null; due_date: string;
-        schools: { name: string } | null;
-        allow_partial: boolean;
-      } | null;
-    };
-
+  const req = reqResult.data as {
+    id: string; title: string; description: string | null; due_date: string;
+    schools: { name: string } | null; allow_partial: boolean;
+  } | null;
   if (!req) notFound();
 
-  // Fetch only this guardian's assignments for this request — filtered at SQL level via !inner join
+  // Fetch guardian's assignments
   const { data: assignments } = await admin
     .from("assignments")
     .select(`
@@ -72,7 +62,7 @@ export default async function PayPage({ params }: { params: Promise<{ token: str
     .eq("payment_request_id", payload.paymentRequestId)
     .eq("students.guardian_student.guardian_id", guardian.id) as {
       data: Array<{
-        id: string; amount_due_pence: number; status: string;
+        id: string; amount_due_pence: number; amount_paid_pence: number; status: string;
         students: {
           first_name: string; year_group: string;
           guardian_student: Array<{ guardian_id: string }>;
@@ -88,6 +78,46 @@ export default async function PayPage({ params }: { params: Promise<{ token: str
     students: { first_name: a.students.first_name, year_group: a.students.year_group },
   }));
 
+  // Fetch consent form for this payment request (if any)
+  const { data: consentFormRow } = await (admin.from("consent_forms") as any)
+    .select("id, type, requires_consent_before_payment, consent_fields(id, key, label, field_type, required, sort_order)")
+    .eq("payment_request_id", payload.paymentRequestId)
+    .maybeSingle();
+
+  let consentForms: ConsentFormData[] = [];
+  let requiresConsentBeforePayment = false;
+
+  if (consentFormRow) {
+    requiresConsentBeforePayment = consentFormRow.requires_consent_before_payment;
+    const fields = (consentFormRow.consent_fields ?? []).sort(
+      (a: { sort_order: number }, b: { sort_order: number }) => a.sort_order - b.sort_order
+    );
+
+    // Build one ConsentFormData per assignment (one per child)
+    consentForms = await Promise.all(
+      myAssignments.map(async (a) => {
+        // Fetch latest non-withdrawn response for this assignment
+        const { data: latest } = await (admin.from("consent_responses") as any)
+          .select("id, responses, guardian_name_signed, signed_at, withdrawn_at")
+          .eq("consent_form_id", consentFormRow.id)
+          .eq("assignment_id", a.id)
+          .eq("guardian_id", guardian.id)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        return {
+          consentFormId: consentFormRow.id,
+          assignmentId: a.id,
+          fields,
+          consentFormType: consentFormRow.type,
+          studentName: `${a.students.first_name} (${a.students.year_group})`,
+          existingResponse: latest ?? null,
+        } satisfies ConsentFormData;
+      })
+    );
+  }
+
   const dueFormatted = new Date(req.due_date).toLocaleDateString("en-GB", {
     day: "numeric", month: "long", year: "numeric",
   });
@@ -97,7 +127,6 @@ export default async function PayPage({ params }: { params: Promise<{ token: str
   return (
     <main id="main-content" className="min-h-screen bg-gray-50">
       <div className="max-w-lg mx-auto px-4 py-8 space-y-6">
-        {/* Header */}
         <div className="text-center space-y-1">
           <p className="text-sm text-gray-500">{schoolName}</p>
           <h1 className="text-2xl font-bold text-gray-900">{req.title}</h1>
@@ -110,12 +139,14 @@ export default async function PayPage({ params }: { params: Promise<{ token: str
             No outstanding payments found for your children.
           </div>
         ) : (
-          <PaymentSelector
+          <PayWithConsent
             assignments={myAssignments}
             guardianId={guardian.id}
             paymentRequestId={req.id}
             token={token}
             allowPartial={req.allow_partial ?? false}
+            consentForms={consentForms}
+            requiresConsentBeforePayment={requiresConsentBeforePayment}
           />
         )}
 
