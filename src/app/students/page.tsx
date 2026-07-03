@@ -66,6 +66,15 @@ export default async function StudentsPage() {
 
         {/* Import section */}
         <section className="space-y-3">
+          <div className="flex items-center gap-3">
+            <a
+              href="/students/wonde-sync"
+              className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 shadow-sm"
+            >
+              <span>⚡</span> Sync from MIS (Wonde)
+            </a>
+            <span className="text-xs text-gray-400">or import manually below</span>
+          </div>
           <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Import from CSV</h2>
           <ImportClient />
         </section>
