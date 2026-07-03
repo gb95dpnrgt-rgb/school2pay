@@ -1,122 +1,145 @@
+import Link from "next/link";
+
 export default function TermsPage() {
   return (
     <main className="min-h-screen bg-white">
-      <div className="max-w-3xl mx-auto px-6 py-16 prose prose-gray">
-        {/* ⚠ SOLICITOR REVIEW REQUIRED before go-live — see notice at bottom */}
+      {/* Nav */}
+      <header className="border-b border-gray-100 px-6 py-4">
+        <div className="max-w-3xl mx-auto flex items-center justify-between">
+          <Link href="/" className="flex items-center gap-2">
+            <div className="h-7 w-7 rounded-lg bg-blue-600 flex items-center justify-center">
+              <span className="text-white font-bold text-xs">S2</span>
+            </div>
+            <span className="font-bold text-gray-900">School2Pay</span>
+          </Link>
+          <Link href="/" className="text-sm text-gray-400 hover:text-gray-600">← Back</Link>
+        </div>
+      </header>
 
-        <div className="mb-10 rounded-xl border-2 border-amber-300 bg-amber-50 px-6 py-4 not-prose">
-          <p className="text-sm font-bold text-amber-800">⚠ DRAFT — NOT YET APPROVED FOR PUBLICATION</p>
-          <p className="text-sm text-amber-700 mt-1">
-            These terms have not been reviewed by a solicitor. They must be reviewed and approved
-            by qualified legal counsel before the service is made available to the public.
-            This is placeholder text only.
-          </p>
+      <div className="max-w-3xl mx-auto px-6 py-16 space-y-10">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Terms of Service</h1>
+          <p className="text-sm text-gray-400 mt-2">Last updated: 3 July 2026</p>
         </div>
 
-        <h1>Terms of Service</h1>
-        <p className="text-sm text-gray-500">Last updated: [DATE — to be set at launch]</p>
-
-        <h2>1. Parties</h2>
-        <p>
-          These terms govern the relationship between [COMPANY LEGAL NAME] (<strong>"School2Pay"</strong>,
-          <strong>"we"</strong>, <strong>"us"</strong>) and the school or trust
-          (<strong>"the School"</strong>) that has subscribed to use the School2Pay platform.
-        </p>
-        <p>
-          These terms do not create a contract between School2Pay and individual parents or
-          guardians. The School is responsible for its own relationship with parents.
-        </p>
-
-        <h2>2. The service</h2>
-        <p>
-          School2Pay provides software that enables schools to create payment requests and
-          collect card payments from parents for school activities (trips, clubs, dinners,
-          uniform, and similar). School2Pay is not a bank, payment institution, or
-          financial services firm. Card payments are processed by Stripe, Inc. under
-          Stripe&rsquo;s own terms of service.
-        </p>
-
-        <h2>3. Fees</h2>
-        <p>
-          School2Pay charges a platform fee of <strong>50p per successful card transaction</strong>{" "}
-          (the <strong>"Application Fee"</strong>), deducted at source from each payout by
-          Stripe. Stripe&rsquo;s own processing fee (~1.5% + 20p for standard UK consumer cards)
-          is also deducted at source.
-        </p>
-        <p>
-          <strong>No surcharging:</strong> the School must never add a card-processing surcharge
-          to the amount presented to parents. Surcharging consumer card payments has been
-          prohibited under UK law since 13 January 2018 (Payment Services Regulations 2017).
-          School2Pay&rsquo;s fee structure is designed to be borne by the School.
-        </p>
-        <p>[SOLICITOR TO REVIEW: confirm fee model, VAT position, invoicing arrangement]</p>
-
-        <h2>4. Connected accounts (Stripe)</h2>
-        <p>
-          To receive payouts, the trust must complete Stripe&rsquo;s Know Your Customer (KYC)
-          onboarding and agree to{" "}
-          <a href="https://stripe.com/gb/connect-account/legal" className="text-blue-600 underline">
-            Stripe&rsquo;s Connected Account Agreement
-          </a>. The trust is the merchant of record for each payment. School2Pay acts as the
-          platform operator.
-        </p>
-
-        <h2>5. Data protection</h2>
-        <p>
-          The School is the data controller for all personal data relating to pupils and parents.
-          School2Pay acts as a data processor on the School&rsquo;s behalf. A Data Processing
-          Agreement (DPA) [to be attached as Schedule 1] forms part of these terms.
-          [SOLICITOR TO DRAFT DPA]
-        </p>
-
-        <h2>6. Acceptable use</h2>
-        <p>The School agrees not to use School2Pay to collect payment for:</p>
-        <ul>
-          <li>tuition fees or any amount that would constitute a charge for state education;</li>
-          <li>activities that are unlawful, fraudulent, or not connected with the school&rsquo;s educational purpose;</li>
-          <li>any amount that would breach the School&rsquo;s own charging and remissions policy.</li>
-        </ul>
-
-        <h2>7. Limitation of liability</h2>
-        <p>
-          [SOLICITOR TO DRAFT — standard SaaS limitation clauses, indemnities, consequential
-          loss exclusion, etc.]
-        </p>
-
-        <h2>8. Termination</h2>
-        <p>
-          Either party may terminate with [30] days&rsquo; written notice. On termination, the
-          School&rsquo;s data will be retained for [90] days and then deleted, except where
-          retention is required by law.
-          [SOLICITOR TO CONFIRM]
-        </p>
-
-        <h2>9. Governing law</h2>
-        <p>
-          These terms are governed by the law of England and Wales. Any disputes shall be
-          subject to the exclusive jurisdiction of the courts of England and Wales.
-        </p>
-
-        <h2>10. Contact</h2>
-        <p>
-          Legal notices: [COMPANY ADDRESS].<br />
-          General enquiries: [CONTACT EMAIL]
-        </p>
-
-        <div className="mt-12 rounded-xl border-2 border-amber-300 bg-amber-50 px-6 py-4 not-prose">
-          <p className="text-sm font-bold text-amber-800">⚠ SOLICITOR REVIEW CHECKLIST</p>
-          <ul className="mt-2 text-sm text-amber-700 space-y-1 list-disc list-inside">
-            <li>Insert company registration details and registered address</li>
-            <li>Confirm fee model and VAT treatment</li>
-            <li>Draft and attach Data Processing Agreement (Schedule 1)</li>
-            <li>Draft limitation of liability and indemnity clauses</li>
-            <li>Confirm the no-surcharging clause and its scope</li>
-            <li>Review termination and data deletion terms</li>
-            <li>Confirm Stripe Connected Account Agreement reference is current</li>
-            <li>Review acceptable use clause against DfE guidance</li>
-            <li>Remove this draft warning before publishing</li>
-          </ul>
+        <div className="rounded-xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm text-amber-800">
+          <strong>Note:</strong> These terms should be reviewed by a solicitor before the service is made available to schools. Company registration details must be inserted before go-live.
         </div>
+
+        {[
+          {
+            title: "1. About School2Pay",
+            content: (
+              <div className="space-y-3 text-sm text-gray-600">
+                <p>School2Pay is operated by <strong>[COMPANY LEGAL NAME]</strong>, registered in England and Wales (company number <strong>[NUMBER]</strong>), registered address <strong>[ADDRESS]</strong>.</p>
+                <p>School2Pay is a payment collection platform that enables UK schools and trusts to collect payments from parents and guardians for school trips, clubs, activities, and other school-related charges. It is not a payment institution — payments are processed by Stripe, Inc.</p>
+              </div>
+            ),
+          },
+          {
+            title: "2. Who these terms apply to",
+            content: (
+              <div className="space-y-3 text-sm text-gray-600">
+                <p>These terms apply to:</p>
+                <ul className="space-y-1 ml-4">
+                  <li className="flex gap-2"><span className="text-blue-500">•</span><span><strong>Schools and trusts</strong> (&ldquo;schools&rdquo;) that use the School2Pay admin portal to create and manage payment requests.</span></li>
+                  <li className="flex gap-2"><span className="text-blue-500">•</span><span><strong>Parents and guardians</strong> who use a School2Pay payment link to pay for a school activity.</span></li>
+                </ul>
+                <p>By using School2Pay, you agree to these terms.</p>
+              </div>
+            ),
+          },
+          {
+            title: "3. The service",
+            content: (
+              <ul className="space-y-2 text-sm text-gray-600">
+                {[
+                  "Schools can create payment requests and assign them to students. Parents receive a secure personal payment link by email.",
+                  "Card payments are processed by Stripe, Inc. on behalf of the school (the merchant of record). School2Pay takes a 50p application fee per successful transaction.",
+                  "School2Pay provides an optional digital consent form feature. Schools are responsible for ensuring consent forms comply with their own safeguarding policies.",
+                  "School2Pay is provided as a software service. We do not guarantee uninterrupted availability but aim for 99.5% uptime.",
+                  "We reserve the right to suspend access to any school that misuses the platform or violates these terms.",
+                ].map((item, i) => (
+                  <li key={i} className="flex items-start gap-2"><span className="text-blue-500 mt-0.5">•</span>{item}</li>
+                ))}
+              </ul>
+            ),
+          },
+          {
+            title: "4. Fees and payments",
+            content: (
+              <div className="space-y-3 text-sm text-gray-600">
+                <p><strong>For schools:</strong> School2Pay charges no setup fee, no monthly fee, and no annual licence. The only charge is a <strong>50p application fee per successful transaction</strong>, deducted at source by Stripe alongside Stripe&rsquo;s own processing fee.</p>
+                <p><strong>For parents:</strong> Parents pay the amount set by the school. No surcharges are added to parent payments. Surcharging consumer card payments has been illegal in the UK since January 2018 and School2Pay does not do it.</p>
+                <p><strong>Refunds:</strong> Schools can initiate refunds through the admin portal. Stripe&rsquo;s processing fee is non-refundable. School2Pay&rsquo;s 50p fee is non-refundable.</p>
+              </div>
+            ),
+          },
+          {
+            title: "5. School responsibilities",
+            content: (
+              <ul className="space-y-2 text-sm text-gray-600">
+                {[
+                  "Schools are responsible for ensuring parent data uploaded to School2Pay is accurate and obtained lawfully.",
+                  "Schools must sign a Data Processing Agreement (DPA) with School2Pay before going live with real parent data.",
+                  "Schools are the merchant of record and are responsible for their Stripe connected account, including Stripe's terms of service.",
+                  "Schools must not use School2Pay to collect payments for anything other than legitimate school activities.",
+                  "Schools are responsible for their own safeguarding obligations in relation to consent form data.",
+                ].map((item, i) => (
+                  <li key={i} className="flex items-start gap-2"><span className="text-blue-500 mt-0.5">•</span>{item}</li>
+                ))}
+              </ul>
+            ),
+          },
+          {
+            title: "6. Parent rights",
+            content: (
+              <div className="space-y-3 text-sm text-gray-600">
+                <p>Parents who have made a payment and wish to request a refund should contact their school directly. School2Pay cannot process refunds directly — only the school admin can initiate a refund.</p>
+                <p>Parents who have submitted a consent form can withdraw their consent at any time via their payment link. Withdrawal of consent does not automatically entitle the parent to a refund — that is a matter between the parent and the school.</p>
+              </div>
+            ),
+          },
+          {
+            title: "7. Limitation of liability",
+            content: (
+              <div className="space-y-3 text-sm text-gray-600">
+                <p>School2Pay is provided &ldquo;as is&rdquo;. To the fullest extent permitted by law, we exclude all liability for indirect or consequential losses arising from use of the service.</p>
+                <p>Our total liability to any school in any 12-month period shall not exceed the total application fees paid by that school in that period.</p>
+                <p>Nothing in these terms limits liability for death or personal injury caused by negligence, fraud, or any other liability that cannot be excluded by law.</p>
+              </div>
+            ),
+          },
+          {
+            title: "8. Termination",
+            content: (
+              <div className="space-y-3 text-sm text-gray-600">
+                <p>Schools may stop using School2Pay at any time. There are no cancellation fees or minimum terms.</p>
+                <p>We may suspend or terminate access if a school breaches these terms, with reasonable notice except in cases of serious misuse.</p>
+                <p>On termination, schools may request an export of their data. Data will be retained for the periods set out in our Privacy Notice.</p>
+              </div>
+            ),
+          },
+          {
+            title: "9. Governing law",
+            content: (
+              <p className="text-sm text-gray-600">These terms are governed by the laws of England and Wales. Any disputes shall be subject to the exclusive jurisdiction of the courts of England and Wales.</p>
+            ),
+          },
+          {
+            title: "10. Contact",
+            content: (
+              <p className="text-sm text-gray-600">
+                For questions about these terms, email <strong>hello@school2pay.com</strong>.
+              </p>
+            ),
+          },
+        ].map((section) => (
+          <section key={section.title} className="space-y-3">
+            <h2 className="text-lg font-bold text-gray-900 border-b border-gray-100 pb-2">{section.title}</h2>
+            <div>{section.content}</div>
+          </section>
+        ))}
       </div>
     </main>
   );
