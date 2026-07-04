@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { stripe } from "@/lib/stripe";
 import { verifyClubToken } from "@/lib/club-token";
+import { sendClubWaitlistConfirmation } from "@/lib/email";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://school2pay.vercel.app";
 
@@ -133,6 +134,23 @@ export async function POST(req: NextRequest) {
         waitlist_position: (waitlistCount ?? 0) + 1,
       });
     }
+
+    // Email the parent their waiting list position
+    const schoolName = (club.schools as any)?.name ?? "your school";
+    const waitlistPos = isFull
+      ? ((await (admin.from("club_enrollments") as any)
+          .select("id", { count: "exact", head: true })
+          .eq("club_id", clubId)
+          .eq("status", "waitlisted")) as { count: number | null }).count ?? 1
+      : 1;
+
+    await sendClubWaitlistConfirmation({
+      email,
+      clubName: club.name,
+      schoolName,
+      childName: student.first_name,
+      position: waitlistPos,
+    }).catch((err) => console.error("[clubs/signup] waitlist email failed:", err));
 
     return NextResponse.json({ waitlisted: true });
   }

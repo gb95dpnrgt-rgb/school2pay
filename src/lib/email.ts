@@ -179,3 +179,84 @@ export async function sendPaymentConfirmation(data: PaymentConfirmationData): Pr
 
   return result?.id ?? null;
 }
+
+export async function sendClubWaitlistConfirmation(data: {
+  email: string;
+  clubName: string;
+  schoolName: string;
+  childName: string;
+  position: number;
+}): Promise<void> {
+  await resend.emails.send({
+    from: FROM,
+    to: data.email,
+    subject: `Waiting list confirmation — ${data.clubName}`,
+    html: `
+      <div style="font-family:sans-serif;max-width:520px;margin:0 auto;background:#fff;border-radius:12px;border:1px solid #e5e7eb;overflow:hidden">
+        <div style="background:#d97706;padding:24px;color:#fff">
+          <p style="margin:0;font-size:13px;opacity:0.8">${data.schoolName}</p>
+          <h1 style="margin:4px 0 0;font-size:20px;font-weight:700">You're on the waiting list</h1>
+        </div>
+        <div style="padding:24px;color:#374151">
+          <p>Dear Parent/Guardian,</p>
+          <p><strong>${data.clubName}</strong> is currently full. We've added <strong>${data.childName}</strong> to the waiting list.</p>
+          <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:16px;margin:16px 0">
+            <p style="margin:0;font-weight:600;color:#92400e">Waiting list position: #${data.position}</p>
+          </div>
+          <p>We'll email you automatically if a place becomes available. No payment is needed until a place is confirmed.</p>
+          <p style="font-size:12px;color:#9ca3af;margin-top:24px">Questions? Contact ${data.schoolName} directly.<br>School2Pay · school2pay.com</p>
+        </div>
+      </div>
+    `,
+  });
+}
+
+export async function sendClubEnrollmentConfirmation(data: {
+  email: string;
+  clubName: string;
+  schoolName: string;
+  childName: string;
+  amountPence: number;
+  dayOfWeek: string | null;
+  startDate: string | null;
+}): Promise<void> {
+  const amount = `£${(data.amountPence / 100).toFixed(2)}`;
+  const startStr = data.startDate
+    ? new Date(data.startDate).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })
+    : null;
+
+  await resend.emails.send({
+    from: FROM,
+    to: data.email,
+    subject: `Enrolled: ${data.clubName} — ${data.schoolName}`,
+    html: `
+      <div style="font-family:sans-serif;max-width:520px;margin:0 auto;background:#fff;border-radius:12px;border:1px solid #e5e7eb;overflow:hidden">
+        <div style="background:#16a34a;padding:24px;color:#fff">
+          <p style="margin:0;font-size:13px;opacity:0.8">${data.schoolName}</p>
+          <h1 style="margin:4px 0 0;font-size:20px;font-weight:700">Enrolled ✓</h1>
+        </div>
+        <div style="padding:24px;color:#374151">
+          <p>Dear Parent/Guardian,</p>
+          <p>Payment confirmed — <strong>${data.childName}</strong> is enrolled in <strong>${data.clubName}</strong>.</p>
+          <table style="width:100%;border-collapse:collapse;margin:16px 0;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden">
+            <tr style="background:#f9fafb">
+              <td style="padding:10px 14px;font-size:13px;color:#6b7280">Club</td>
+              <td style="padding:10px 14px;font-weight:600">${data.clubName}</td>
+            </tr>
+            <tr>
+              <td style="padding:10px 14px;font-size:13px;color:#6b7280">Child</td>
+              <td style="padding:10px 14px;font-weight:600">${data.childName}</td>
+            </tr>
+            ${data.dayOfWeek ? `<tr style="background:#f9fafb"><td style="padding:10px 14px;font-size:13px;color:#6b7280">Day</td><td style="padding:10px 14px;font-weight:600">${data.dayOfWeek}s</td></tr>` : ""}
+            ${startStr ? `<tr><td style="padding:10px 14px;font-size:13px;color:#6b7280">Starts</td><td style="padding:10px 14px;font-weight:600">${startStr}</td></tr>` : ""}
+            <tr style="background:#f9fafb">
+              <td style="padding:10px 14px;font-size:13px;color:#6b7280">Amount paid</td>
+              <td style="padding:10px 14px;font-weight:600;color:#16a34a">${amount}</td>
+            </tr>
+          </table>
+          <p style="font-size:12px;color:#9ca3af">Please keep this email as your receipt. Questions? Contact ${data.schoolName} directly.<br>School2Pay · school2pay.com</p>
+        </div>
+      </div>
+    `,
+  });
+}

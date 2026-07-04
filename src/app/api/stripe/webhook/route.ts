@@ -5,7 +5,7 @@ import { stripe } from "@/lib/stripe";
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/supabase/types";
 import { postPaymentEntries, postRefundEntries } from "@/lib/ledger";
-import { sendPaymentConfirmation } from "@/lib/email";
+import { sendPaymentConfirmation, sendClubEnrollmentConfirmation } from "@/lib/email";
 
 // Raw body required for Stripe signature verification
 export const dynamic = "force-dynamic";
@@ -185,6 +185,36 @@ async function handleClubEnrollmentPaid(
   await (db.from("club_enrollments") as any)
     .update({ payment_status: "paid", updated_at: new Date().toISOString() })
     .eq("id", enrollment_id);
+
+  // Send confirmation email to parent
+  const { data: enrollment } = await (db.from("club_enrollments") as any)
+    .select("guardian_id, student_id, club_id")
+    .eq("id", enrollment_id)
+    .single() as { data: { guardian_id: string; student_id: string; club_id: string } | null };
+
+  if (enrollment) {
+    const [{ data: guardian }, { data: student }, { data: club }] = await Promise.all([
+      db.from("guardians").select("email").eq("id", enrollment.guardian_id).single() as Promise<{ data: { email: string } | null }>,
+      db.from("students").select("first_name").eq("id", enrollment.student_id).single() as Promise<{ data: { first_name: string } | null }>,
+      (db.from("clubs") as any).select("name, fee_pence, fee_model, sessions_per_term, day_of_week, start_date, schools(name)").eq("id", enrollment.club_id).single() as Promise<{ data: { name: string; fee_pence: number; fee_model: string; sessions_per_term: number | null; day_of_week: string | null; start_date: string | null; schools: { name: string } | null } | null }>,
+    ]);
+
+    if (guardian?.email && student && club) {
+      const totalFee = club.fee_model === "weekly"
+        ? club.fee_pence * (club.sessions_per_term ?? 1)
+        : club.fee_pence;
+
+      await sendClubEnrollmentConfirmation({
+        email: guardian.email,
+        clubName: club.name,
+        schoolName: (club.schools as any)?.name ?? "",
+        childName: student.first_name,
+        amountPence: totalFee,
+        dayOfWeek: club.day_of_week,
+        startDate: club.start_date,
+      }).catch((err) => console.error("[webhook] club confirmation email failed:", err));
+    }
+  }
 
   console.log(`[webhook] club enrollment ${enrollment_id} marked paid`);
 }
