@@ -4,6 +4,17 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient as createServerClient } from "@/lib/supabase/server";
 import { createClient as createAdminClient } from "@supabase/supabase-js";
+import { signDinnerToken } from "@/lib/dinner-token";
+
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://school2pay.vercel.app";
+
+/** Generate a signed top-up link for a guardian */
+export async function generateTopUpLink(formData: FormData): Promise<{ url: string }> {
+  const guardianId = formData.get("guardian_id") as string;
+  const schoolId = formData.get("school_id") as string;
+  const token = await signDinnerToken(guardianId, schoolId);
+  return { url: `${APP_URL}/pay/dinner/${encodeURIComponent(token)}` };
+}
 
 function getAdmin() {
   return createAdminClient(

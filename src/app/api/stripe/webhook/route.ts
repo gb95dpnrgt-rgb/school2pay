@@ -79,6 +79,10 @@ export async function POST(req: NextRequest) {
 
   try {
     switch (event.type) {
+      case "checkout.session.completed":
+        await handleCheckoutCompleted(db, event.data.object as Stripe.Checkout.Session);
+        break;
+
       case "payment_intent.succeeded":
         await handlePaymentSucceeded(db, event.data.object as Stripe.PaymentIntent);
         break;
@@ -111,6 +115,58 @@ export async function POST(req: NextRequest) {
 
   console.log(`[webhook] processed: ${event.type} ${event.id}`);
   return NextResponse.json({ received: true });
+}
+
+// ── checkout.session.completed (dinner top-up) ───────────────────────────────
+async function handleCheckoutCompleted(
+  db: ReturnType<typeof serviceClient>,
+  session: Stripe.Checkout.Session
+): Promise<void> {
+  const meta = session.metadata ?? {};
+  if (meta.type !== "dinner_topup") return; // not a dinner top-up — ignore
+
+  const { guardian_id, school_id, wallet_id } = meta;
+  if (!guardian_id || !school_id || !wallet_id) {
+    console.warn("[webhook] dinner_topup missing metadata fields");
+    return;
+  }
+
+  // Amount is in smallest currency unit (pence)
+  const amountPence = session.amount_total;
+  if (!amountPence || amountPence <= 0) return;
+
+  // Get current wallet balance
+  const { data: wallet } = await (db.from("dinner_wallets") as any)
+    .select("id, balance_pence")
+    .eq("id", wallet_id)
+    .single() as { data: { id: string; balance_pence: number } | null };
+
+  if (!wallet) {
+    console.warn(`[webhook] dinner_topup: wallet ${wallet_id} not found`);
+    return;
+  }
+
+  const balanceAfter = wallet.balance_pence + amountPence;
+
+  // Append transaction (append-only — never update)
+  await (db.from("dinner_transactions") as any).insert({
+    wallet_id: wallet.id,
+    type: "topup",
+    amount_pence: amountPence,
+    balance_after_pence: balanceAfter,
+    stripe_payment_intent: typeof session.payment_intent === "string"
+      ? session.payment_intent
+      : (session.payment_intent as { id: string } | null)?.id ?? null,
+    note: "Online top-up via card",
+    date: new Date().toISOString().slice(0, 10),
+  });
+
+  // Update wallet balance
+  await (db.from("dinner_wallets") as any)
+    .update({ balance_pence: balanceAfter, updated_at: new Date().toISOString() })
+    .eq("id", wallet.id);
+
+  console.log(`[webhook] dinner_topup: wallet ${wallet_id} credited ${amountPence}p → balance ${balanceAfter}p`);
 }
 
 // ── payment_intent.succeeded ─────────────────────────────────────────────────

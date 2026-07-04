@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { recordMeals, adminTopUp, saveDinnerSettings, toggleFsm } from "./actions";
+import { recordMeals, adminTopUp, saveDinnerSettings, toggleFsm, generateTopUpLink } from "./actions";
 import type { DinnerStudent, WalletRow, DinnerSettings } from "./page";
 
 function pence(n: number) {
@@ -127,11 +127,24 @@ function RegisterTab({ students }: { students: DinnerStudent[] }) {
 function WalletsTab({
   wallets,
   threshold,
+  schoolId,
 }: {
   wallets: WalletRow[];
   threshold: number;
+  schoolId: string;
 }) {
   const [topUpGuardian, setTopUpGuardian] = useState<WalletRow | null>(null);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  async function copyLink(guardianId: string) {
+    const fd = new FormData();
+    fd.append("guardian_id", guardianId);
+    fd.append("school_id", schoolId);
+    const { url } = await generateTopUpLink(fd);
+    await navigator.clipboard.writeText(url);
+    setCopiedId(guardianId);
+    setTimeout(() => setCopiedId(null), 2000);
+  }
   const [amount, setAmount] = useState("");
   const [note, setNote] = useState("");
   const [pending, setPending] = useState(false);
@@ -196,12 +209,20 @@ function WalletsTab({
                     {isLow && <span className="ml-1 text-xs text-amber-500">low</span>}
                   </td>
                   <td className="px-4 py-3">
-                    <button
-                      onClick={() => setTopUpGuardian(w)}
-                      className="text-xs text-blue-600 hover:underline"
-                    >
-                      Top up
-                    </button>
+                    <div className="flex items-center gap-3">
+                      <button
+                        onClick={() => setTopUpGuardian(w)}
+                        className="text-xs text-blue-600 hover:underline"
+                      >
+                        Top up
+                      </button>
+                      <button
+                        onClick={() => copyLink(w.guardian.id)}
+                        className="text-xs text-gray-500 hover:text-gray-800"
+                      >
+                        {copiedId === w.guardian.id ? "✓ Copied" : "Copy link"}
+                      </button>
+                    </div>
                   </td>
                 </tr>
               );
@@ -444,7 +465,7 @@ export default function DinnerTabs({
       </div>
 
       {tab === "Register" && <RegisterTab students={students} />}
-      {tab === "Wallets" && <WalletsTab wallets={wallets} threshold={settings.low_balance_threshold_pence} />}
+      {tab === "Wallets" && <WalletsTab wallets={wallets} threshold={settings.low_balance_threshold_pence} schoolId={schoolId} />}
       {tab === "FSM" && <FsmTab students={students} />}
       {tab === "Settings" && <SettingsTab settings={settings} />}
     </div>
