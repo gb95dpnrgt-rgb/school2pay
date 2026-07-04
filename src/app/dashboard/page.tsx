@@ -324,6 +324,17 @@ export default async function DashboardPage() {
           </div>
         )}
 
+        {/* Clubs */}
+        <div className="rounded-xl border border-gray-200 bg-white p-6 flex items-center justify-between">
+          <div>
+            <h2 className="text-sm font-semibold text-gray-800">Clubs</h2>
+            <p className="text-sm text-gray-500 mt-1">Create termly or weekly clubs, share sign-up links with parents, manage waiting lists.</p>
+          </div>
+          <a href="/clubs" className="rounded-lg bg-gray-800 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-900">
+            Manage clubs
+          </a>
+        </div>
+
         {/* Dinner money */}
         <div className="rounded-xl border border-gray-200 bg-white p-6 flex items-center justify-between">
           <div>

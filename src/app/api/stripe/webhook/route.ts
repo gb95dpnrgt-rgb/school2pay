@@ -79,9 +79,12 @@ export async function POST(req: NextRequest) {
 
   try {
     switch (event.type) {
-      case "checkout.session.completed":
-        await handleCheckoutCompleted(db, event.data.object as Stripe.Checkout.Session);
+      case "checkout.session.completed": {
+        const session = event.data.object as Stripe.Checkout.Session;
+        await handleCheckoutCompleted(db, session);
+        await handleClubEnrollmentPaid(db, session);
         break;
+      }
 
       case "payment_intent.succeeded":
         await handlePaymentSucceeded(db, event.data.object as Stripe.PaymentIntent);
@@ -167,6 +170,23 @@ async function handleCheckoutCompleted(
     .eq("id", wallet.id);
 
   console.log(`[webhook] dinner_topup: wallet ${wallet_id} credited ${amountPence}p → balance ${balanceAfter}p`);
+}
+
+async function handleClubEnrollmentPaid(
+  db: ReturnType<typeof serviceClient>,
+  session: Stripe.Checkout.Session
+): Promise<void> {
+  const meta = session.metadata ?? {};
+  if (meta.type !== "club_enrollment") return;
+
+  const { enrollment_id } = meta;
+  if (!enrollment_id) return;
+
+  await (db.from("club_enrollments") as any)
+    .update({ payment_status: "paid", updated_at: new Date().toISOString() })
+    .eq("id", enrollment_id);
+
+  console.log(`[webhook] club enrollment ${enrollment_id} marked paid`);
 }
 
 // ── payment_intent.succeeded ─────────────────────────────────────────────────
