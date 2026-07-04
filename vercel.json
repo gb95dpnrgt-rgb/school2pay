@@ -7,6 +7,10 @@
     {
       "path": "/api/cron/wonde-sync",
       "schedule": "0 2 * * *"
+    },
+    {
+      "path": "/api/cron/dinner-alerts",
+      "schedule": "0 7 * * *"
     }
   ]
 }

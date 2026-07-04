@@ -324,6 +324,20 @@ export default async function DashboardPage() {
           </div>
         )}
 
+        {/* Dinner money */}
+        <div className="rounded-xl border border-gray-200 bg-white p-6 flex items-center justify-between">
+          <div>
+            <h2 className="text-sm font-semibold text-gray-800">Dinner money</h2>
+            <p className="text-sm text-gray-500 mt-1">Daily meal register, parent wallet balances, FSM pupils, and low balance alerts.</p>
+          </div>
+          <a
+            href="/dinner"
+            className="rounded-lg bg-gray-800 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-900"
+          >
+            Open register
+          </a>
+        </div>
+
         {/* Invite admin */}
         <InviteAdminForm />
       </div>
