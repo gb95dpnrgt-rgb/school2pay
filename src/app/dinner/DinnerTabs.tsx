@@ -136,12 +136,12 @@ function WalletsTab({
   const [topUpGuardian, setTopUpGuardian] = useState<WalletRow | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
-  async function copyLink(guardianId: string) {
+  async function openLink(guardianId: string) {
     const fd = new FormData();
     fd.append("guardian_id", guardianId);
     fd.append("school_id", schoolId);
     const { url } = await generateTopUpLink(fd);
-    await navigator.clipboard.writeText(url);
+    window.open(url, "_blank");
     setCopiedId(guardianId);
     setTimeout(() => setCopiedId(null), 2000);
   }
@@ -217,10 +217,10 @@ function WalletsTab({
                         Top up
                       </button>
                       <button
-                        onClick={() => copyLink(w.guardian.id)}
+                        onClick={() => openLink(w.guardian.id)}
                         className="text-xs text-gray-500 hover:text-gray-800"
                       >
-                        {copiedId === w.guardian.id ? "✓ Copied" : "Copy link"}
+                        {copiedId === w.guardian.id ? "✓ Opened" : "Open top-up link"}
                       </button>
                     </div>
                   </td>
