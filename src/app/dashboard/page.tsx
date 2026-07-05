@@ -354,6 +354,17 @@ export default async function DashboardPage() {
           </a>
         </div>
 
+        {/* Meal pre-ordering */}
+        <div className="rounded-xl border border-gray-200 bg-white p-6 flex items-center justify-between">
+          <div>
+            <h2 className="text-sm font-semibold text-gray-800">Meal Pre-ordering</h2>
+            <p className="text-sm text-gray-500 mt-1">Set the week&apos;s menu on Monday, parents order by 9:30am each day. Kitchen gets a live summary.</p>
+          </div>
+          <a href="/meals" className="rounded-lg bg-gray-800 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-900">
+            Manage meals
+          </a>
+        </div>
+
         {/* Dinner money */}
         <div className="rounded-xl border border-gray-200 bg-white p-6 flex items-center justify-between">
           <div>
