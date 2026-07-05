@@ -141,6 +141,14 @@ export default async function DashboardPage() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
+  // Trust admins have no school — send them to their dashboard
+  const admin = getAdmin();
+  const { data: trustAdmin } = await (admin.from("trust_admin_users") as any)
+    .select("id")
+    .eq("auth_user_id", user.id)
+    .maybeSingle() as { data: { id: string } | null };
+  if (trustAdmin) redirect("/trust/dashboard");
+
   const { data: school } = await supabase
     .from("schools")
     .select("id, name, trust_id, trusts!schools_trust_id_fkey(id, legal_name, stripe_account_id)")
