@@ -365,6 +365,17 @@ export default async function DashboardPage() {
           </a>
         </div>
 
+        {/* Financial reports */}
+        <div className="rounded-xl border border-gray-200 bg-white p-6 flex items-center justify-between">
+          <div>
+            <h2 className="text-sm font-semibold text-gray-800">Financial Reports</h2>
+            <p className="text-sm text-gray-500 mt-1">Collection rates, outstanding balances, transaction log, and CSV exports. All amounts labelled gross, fees, or net.</p>
+          </div>
+          <a href="/reports" className="rounded-lg bg-gray-800 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-900">
+            View reports
+          </a>
+        </div>
+
         {/* Dinner money */}
         <div className="rounded-xl border border-gray-200 bg-white p-6 flex items-center justify-between">
           <div>
