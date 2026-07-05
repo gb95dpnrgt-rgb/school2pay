@@ -83,6 +83,7 @@ export async function POST(req: NextRequest) {
         const session = event.data.object as Stripe.Checkout.Session;
         await handleCheckoutCompleted(db, session);
         await handleClubEnrollmentPaid(db, session);
+        await handleShopOrderPaid(db, session);
         break;
       }
 
@@ -217,6 +218,41 @@ async function handleClubEnrollmentPaid(
   }
 
   console.log(`[webhook] club enrollment ${enrollment_id} marked paid`);
+}
+
+async function handleShopOrderPaid(
+  db: ReturnType<typeof serviceClient>,
+  session: Stripe.Checkout.Session
+): Promise<void> {
+  const meta = session.metadata ?? {};
+  if (meta.type !== "shop_order") return;
+
+  const { order_id, school_id } = meta;
+  if (!order_id) return;
+
+  await (db.from("shop_orders") as any)
+    .update({ status: "paid", stripe_payment_intent: session.payment_intent as string ?? null, updated_at: new Date().toISOString() })
+    .eq("id", order_id);
+
+  // Decrement stock for each line
+  const { data: lines } = await (db.from("shop_order_lines") as any)
+    .select("item_id, quantity")
+    .eq("order_id", order_id) as { data: Array<{ item_id: string; quantity: number }> | null };
+
+  for (const line of lines ?? []) {
+    const { data: item } = await (db.from("shop_items") as any)
+      .select("stock")
+      .eq("id", line.item_id)
+      .single() as { data: { stock: number | null } | null };
+
+    if (item?.stock !== null && item?.stock !== undefined) {
+      await (db.from("shop_items") as any)
+        .update({ stock: Math.max(0, item.stock - line.quantity), updated_at: new Date().toISOString() })
+        .eq("id", line.item_id);
+    }
+  }
+
+  console.log(`[webhook] shop order ${order_id} marked paid`);
 }
 
 // ── payment_intent.succeeded ─────────────────────────────────────────────────
