@@ -2,7 +2,7 @@ import { createClient as adminClient } from "@supabase/supabase-js";
 import { notFound } from "next/navigation";
 import MealOrderClient from "./MealOrderClient";
 
-export type MenuOption = { id: string; name: string; description: string };
+export type MenuOption = { id: string; name: string; description: string; allergens: string[] };
 export type PublicMenu = {
   id: string;
   date: string;

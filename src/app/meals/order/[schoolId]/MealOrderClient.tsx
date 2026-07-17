@@ -145,6 +145,15 @@ export default function MealOrderClient({
                       {opt.description && (
                         <span className="block text-xs text-gray-400">{opt.description}</span>
                       )}
+                      {(opt.allergens ?? []).length > 0 && (
+                        <span className="flex flex-wrap gap-1 mt-1.5">
+                          {(opt.allergens ?? []).map((a) => (
+                            <span key={a} className="text-xs bg-amber-50 text-amber-700 border border-amber-200 px-1.5 py-0.5 rounded">
+                              {a}
+                            </span>
+                          ))}
+                        </span>
+                      )}
                     </button>
                   ))}
                   {selected && (

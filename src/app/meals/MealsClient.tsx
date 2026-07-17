@@ -4,6 +4,12 @@ import { useState } from "react";
 import { saveMenu, deleteMenu } from "./actions";
 import type { MealMenu, MenuOption } from "./page";
 
+const UK_ALLERGENS = [
+  "Celery", "Cereals containing gluten", "Crustaceans", "Eggs",
+  "Fish", "Lupin", "Milk", "Molluscs", "Mustard", "Peanuts",
+  "Sesame", "Soybeans", "Sulphur dioxide & sulphites", "Tree nuts",
+];
+
 function fmtDate(s: string) {
   return new Date(s + "T12:00:00").toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" });
 }
@@ -41,13 +47,21 @@ function OptionEditor({
   options: MenuOption[];
   onChange: (opts: MenuOption[]) => void;
 }) {
-  function update(idx: number, field: keyof MenuOption, value: string) {
+  function update(idx: number, field: keyof MenuOption, value: string | string[]) {
     const next = options.map((o, i) => i === idx ? { ...o, [field]: value } : o);
     onChange(next);
   }
 
+  function toggleAllergen(idx: number, allergen: string) {
+    const current = options[idx].allergens ?? [];
+    const next = current.includes(allergen)
+      ? current.filter((a) => a !== allergen)
+      : [...current, allergen];
+    update(idx, "allergens", next);
+  }
+
   function add() {
-    onChange([...options, { id: crypto.randomUUID(), name: "", description: "" }]);
+    onChange([...options, { id: crypto.randomUUID(), name: "", description: "", allergens: [] }]);
   }
 
   function remove(idx: number) {
@@ -58,7 +72,7 @@ function OptionEditor({
     <div className="space-y-2">
       {options.map((opt, i) => (
         <div key={opt.id} className="flex gap-2 items-start">
-          <div className="flex-1 space-y-1">
+          <div className="flex-1 space-y-2">
             <input
               value={opt.name}
               onChange={(e) => update(i, "name", e.target.value)}
@@ -71,6 +85,24 @@ function OptionEditor({
               placeholder="Description (optional)"
               className="w-full rounded-lg border border-gray-200 px-3 py-1.5 text-xs text-gray-500 focus:outline-none focus:ring-1 focus:ring-blue-400"
             />
+            <details className="group">
+              <summary className="text-xs text-amber-600 cursor-pointer hover:underline list-none">
+                Allergens {(opt.allergens ?? []).length > 0 && <span className="font-semibold">({(opt.allergens ?? []).length} selected)</span>}
+              </summary>
+              <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1.5">
+                {UK_ALLERGENS.map((a) => (
+                  <label key={a} className="flex items-center gap-1.5 text-xs text-gray-600 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={(opt.allergens ?? []).includes(a)}
+                      onChange={() => toggleAllergen(i, a)}
+                      className="rounded border-gray-300 text-amber-500 focus:ring-amber-400"
+                    />
+                    {a}
+                  </label>
+                ))}
+              </div>
+            </details>
           </div>
           <button type="button" onClick={() => remove(i)} className="mt-1 text-gray-400 hover:text-red-500 text-lg">×</button>
         </div>
@@ -98,8 +130,8 @@ function WeekSetupForm({ weekMonday, existingMenus, onDone }: {
     for (const date of dates) {
       const existing = existingByDate.get(date);
       init[date] = existing?.options ?? [
-        { id: crypto.randomUUID(), name: "", description: "" },
-        { id: crypto.randomUUID(), name: "", description: "" },
+        { id: crypto.randomUUID(), name: "", description: "", allergens: [] },
+        { id: crypto.randomUUID(), name: "", description: "", allergens: [] },
       ];
     }
     return init;
@@ -196,12 +228,23 @@ function DayCard({ menu, schoolId }: { menu: MealMenu; schoolId: string }) {
         </button>
       </div>
 
-      {/* Options */}
-      <div className="flex gap-2 flex-wrap">
+      {/* Options + allergens */}
+      <div className="space-y-2">
         {menu.options.map((opt) => (
-          <span key={opt.id} className="text-xs bg-gray-100 text-gray-700 px-2.5 py-1 rounded-full">
-            {opt.name}
-          </span>
+          <div key={opt.id}>
+            <span className="text-xs bg-gray-100 text-gray-700 px-2.5 py-1 rounded-full font-medium">
+              {opt.name}
+            </span>
+            {(opt.allergens ?? []).length > 0 && (
+              <div className="flex flex-wrap gap-1 mt-1 ml-1">
+                {(opt.allergens ?? []).map((a) => (
+                  <span key={a} className="text-xs bg-amber-50 text-amber-700 border border-amber-200 px-1.5 py-0.5 rounded">
+                    {a}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
         ))}
       </div>
 

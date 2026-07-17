@@ -4,7 +4,7 @@ import { createClient as adminClient } from "@supabase/supabase-js";
 import { logout } from "@/app/login/actions";
 import MealsClient from "./MealsClient";
 
-export type MenuOption = { id: string; name: string; description: string };
+export type MenuOption = { id: string; name: string; description: string; allergens: string[] };
 
 export type MealMenu = {
   id: string;
