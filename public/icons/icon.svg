@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Background -->
+  <rect width="512" height="512" rx="96" fill="#2563eb"/>
+  <!-- S2P lettering -->
+  <text x="256" y="320" font-family="system-ui, -apple-system, sans-serif" font-size="200" font-weight="800" fill="white" text-anchor="middle" dominant-baseline="auto">S2P</text>
+</svg>
