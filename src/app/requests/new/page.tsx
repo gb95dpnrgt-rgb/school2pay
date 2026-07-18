@@ -1,10 +1,19 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { createClient as adminClient } from "@supabase/supabase-js";
 import { logout } from "@/app/login/actions";
 import { createPaymentRequest } from "./actions";
 import TargetAndFees from "./TargetAndFees";
 import TemplateLoader from "./TemplateLoader";
 import ConsentToggle from "./ConsentToggle";
+
+function getAdmin() {
+  return adminClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } }
+  );
+}
 
 export default async function NewRequestPage() {
   const supabase = await createClient();
@@ -12,23 +21,29 @@ export default async function NewRequestPage() {
   if (!user) redirect("/login");
 
   const { data: school } = await supabase.from("schools").select("id, name").single();
+  if (!school) redirect("/login");
 
-  const { data: yearGroupRows } = await supabase
+  const admin = getAdmin();
+
+  const { data: yearGroupRows } = await admin
     .from("students")
     .select("year_group")
+    .eq("school_id", school.id)
     .order("year_group");
 
-  const yearGroups = [...new Set((yearGroupRows ?? []).map((r) => r.year_group))];
+  const yearGroups = [...new Set((yearGroupRows ?? []).map((r) => r.year_group).filter(Boolean))];
 
-  const { count: totalStudents } = await supabase
+  const { count: totalStudents } = await admin
     .from("students")
-    .select("id", { count: "exact", head: true });
+    .select("id", { count: "exact", head: true })
+    .eq("school_id", school.id);
 
   const yearGroupCounts: Record<string, number> = {};
   for (const yg of yearGroups) {
-    const { count } = await supabase
+    const { count } = await admin
       .from("students")
       .select("id", { count: "exact", head: true })
+      .eq("school_id", school.id)
       .eq("year_group", yg);
     yearGroupCounts[yg] = count ?? 0;
   }
