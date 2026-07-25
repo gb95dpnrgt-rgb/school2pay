@@ -184,13 +184,13 @@ export async function POST(req: NextRequest) {
     metadata: { transaction_id: txn.id },
   };
 
-  // Add application fee if connected account available
-  if (stripeAccountId) {
-    sessionParams.payment_intent_data = {
-      application_fee_amount: APPLICATION_FEE_PENCE,
-      transfer_data: { destination: stripeAccountId },
-    };
-  }
+  // Always embed transaction_id in PI metadata so webhook can look it up
+  sessionParams.payment_intent_data = {
+    metadata: { transaction_id: txn.id },
+    ...(stripeAccountId
+      ? { application_fee_amount: APPLICATION_FEE_PENCE, transfer_data: { destination: stripeAccountId } }
+      : {}),
+  };
 
   // C2 fix: if Stripe session creation fails, delete the transaction row (cascades to lines)
   // so the parent can retry cleanly without orphaned pending rows blocking future attempts.

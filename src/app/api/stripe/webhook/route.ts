@@ -260,17 +260,38 @@ async function handlePaymentSucceeded(
   db: ReturnType<typeof serviceClient>,
   pi: Stripe.PaymentIntent
 ): Promise<void> {
-  // Find our transaction by payment_intent id
-  const { data: txn } = await db
+  // Find transaction by PI id; fall back to PI metadata.transaction_id for older rows
+  let { data: txn } = await db
     .from("transactions")
     .select("id, amount_pence, status")
     .eq("stripe_payment_intent", pi.id)
     .maybeSingle();
 
   if (!txn) {
-    console.warn(`[webhook] no transaction found for PI: ${pi.id}`);
+    const txnIdFromMeta = pi.metadata?.transaction_id;
+    if (!txnIdFromMeta) {
+      console.warn(`[webhook] no transaction found for PI: ${pi.id}`);
+      return;
+    }
+    const { data: txnByMeta } = await db
+      .from("transactions")
+      .select("id, amount_pence, status")
+      .eq("id", txnIdFromMeta)
+      .maybeSingle();
+    txn = txnByMeta;
+  }
+
+  if (!txn) {
+    console.warn(`[webhook] no transaction found for PI: ${pi.id} (metadata fallback also failed)`);
     return;
   }
+
+  // Backfill stripe_payment_intent for fast future lookups
+  await db
+    .from("transactions")
+    .update({ stripe_payment_intent: pi.id })
+    .eq("id", txn.id)
+    .is("stripe_payment_intent", null);
 
   // Already succeeded (shouldn't happen after idempotency check, but guard anyway)
   if (txn.status === "succeeded") return;
