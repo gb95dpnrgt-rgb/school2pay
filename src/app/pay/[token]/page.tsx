@@ -26,9 +26,9 @@ export default async function PayPage({ params }: { params: Promise<{ token: str
 
   let payload: { guardianId: string; paymentRequestId: string };
   try {
-    payload = await verifyMagicToken(decodeURIComponent(token));
+    payload = await verifyMagicToken(token);
   } catch (e: any) {
-    console.error("Magic link verify failed:", e?.message, "secret prefix:", process.env.MAGIC_LINK_SECRET?.slice(0, 8));
+    console.error("Magic link verify failed:", e?.message, "secret prefix:", process.env.MAGIC_LINK_SECRET?.slice(0, 8), "token prefix:", token?.slice(0, 20));
     return <ExpiredPage />;
   }
 
