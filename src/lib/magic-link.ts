@@ -1,13 +1,13 @@
 import { SignJWT, jwtVerify, type JWTPayload } from "jose";
 
-const rawSecret = process.env.MAGIC_LINK_SECRET;
-if (!rawSecret) {
-  throw new Error("MAGIC_LINK_SECRET environment variable is not set");
-}
-const SECRET = new TextEncoder().encode(rawSecret);
-
 const ALG = "HS256";
-const TTL_SECONDS = 7 * 24 * 60 * 60; // 7 days per CLAUDE.md
+const TTL_SECONDS = 7 * 24 * 60 * 60;
+
+function getSecret() {
+  const raw = process.env.MAGIC_LINK_SECRET;
+  if (!raw) throw new Error("MAGIC_LINK_SECRET is not set");
+  return new TextEncoder().encode(raw);
+}
 
 export interface MagicLinkPayload extends JWTPayload {
   guardianId: string;
@@ -19,11 +19,11 @@ export async function signMagicToken(guardianId: string, paymentRequestId: strin
     .setProtectedHeader({ alg: ALG })
     .setIssuedAt()
     .setExpirationTime(`${TTL_SECONDS}s`)
-    .sign(SECRET);
+    .sign(getSecret());
 }
 
 export async function verifyMagicToken(token: string): Promise<MagicLinkPayload> {
-  const { payload } = await jwtVerify<MagicLinkPayload>(token, SECRET, { algorithms: [ALG] });
+  const { payload } = await jwtVerify<MagicLinkPayload>(token, getSecret(), { algorithms: [ALG] });
   if (!payload.guardianId || !payload.paymentRequestId) {
     throw new Error("Invalid token payload");
   }
