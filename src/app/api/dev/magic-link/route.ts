@@ -15,6 +15,6 @@ export async function GET(req: NextRequest) {
   } catch (e: any) {
     return NextResponse.json({ error: "Verify failed immediately after sign", detail: e?.message, secretPrefix: process.env.MAGIC_LINK_SECRET?.slice(0, 8) }, { status: 500 });
   }
-  const url = `${req.nextUrl.origin}/pay/${encodeURIComponent(token)}`;
+  const url = `${req.nextUrl.origin}/pay/${token}`;
   return NextResponse.json({ url, secretPrefix: process.env.MAGIC_LINK_SECRET?.slice(0, 8) });
 }
