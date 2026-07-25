@@ -3,7 +3,7 @@ import { signMagicToken } from "@/lib/magic-link";
 
 // Dev-only route to generate test magic links — remove before going live
 export async function GET(req: NextRequest) {
-  if (process.env.NODE_ENV === "production" && process.env.ALLOW_DEV_MAGIC !== "true") {
+  if (process.env.ALLOW_DEV_MAGIC !== "true") {
     return NextResponse.json({ error: "Not available" }, { status: 403 });
   }
   const guardianId = req.nextUrl.searchParams.get("guardianId");
