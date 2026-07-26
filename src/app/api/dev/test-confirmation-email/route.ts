@@ -18,13 +18,13 @@ export async function GET(req: NextRequest) {
   const db = getAdmin();
 
   const { data: txnRow, error: e1 } = await db.from("transactions").select("guardian_id").eq("id", txnId).single();
-  if (!txnRow?.guardian_id) return NextResponse.json({ error: "Transaction not found or no guardian_id", detail: e1 }, { status: 404 });
+  if (!txnRow?.guardian_id) return NextResponse.json({ step: "transactions", error: e1?.message ?? "not found" });
 
   const { data: guardian, error: e2 } = await db.from("guardians").select("email").eq("id", txnRow.guardian_id).single();
-  if (!guardian?.email) return NextResponse.json({ error: "Guardian not found or no email", detail: e2 }, { status: 404 });
+  if (!guardian?.email) return NextResponse.json({ step: "guardians", error: e2?.message ?? "not found" });
 
   const { data: lines, error: e3 } = await db.from("transaction_lines").select("id, assignment_id, amount_pence").eq("transaction_id", txnId);
-  if (!lines?.length) return NextResponse.json({ error: "No transaction lines", detail: e3 }, { status: 404 });
+  if (!lines?.length) return NextResponse.json({ step: "transaction_lines", error: e3?.message ?? "empty" });
 
   const children: Array<{ firstName: string; yearGroup: string; amountPence: number }> = [];
   let requestTitle = "";
@@ -48,14 +48,20 @@ export async function GET(req: NextRequest) {
   }
 
   if (!children.length || !requestTitle) {
-    return NextResponse.json({ error: "Missing data for email", children, requestTitle, schoolName });
+    return NextResponse.json({ step: "data_check", children, requestTitle, schoolName, error: "missing data" });
   }
 
-  const { data: result, error: resendErr } = await (sendPaymentConfirmation({ email: guardian.email, requestTitle, schoolName, children }) as any).catch((err: any) => ({ data: null, error: err?.message }));
+  let resendId: string | null = null;
+  let resendErr: string | null = null;
+  try {
+    resendId = await sendPaymentConfirmation({ email: guardian.email, requestTitle, schoolName, children });
+  } catch (err: any) {
+    resendErr = err?.message ?? "unknown error";
+  }
 
   return NextResponse.json({
-    sent: !resendErr,
-    resendId: result,
+    sent: !!resendId && !resendErr,
+    resendId,
     resendErr,
     email: guardian.email,
     requestTitle,
