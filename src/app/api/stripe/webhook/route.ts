@@ -341,45 +341,48 @@ async function handlePaymentSucceeded(
   // Post double-entry ledger rows for the whole transaction gross amount
   await postPaymentEntries(db, txn.id, txn.amount_pence);
 
-  // Send confirmation email
-  // Step 1: fetch guardian email + lines + students
-  const { data: txnFull } = await db
+  // Send confirmation email using only flat queries — no nested joins
+  const { data: txnRow } = await db
     .from("transactions")
-    .select(`
-      guardian_id,
-      guardians(email),
-      transaction_lines(
-        amount_pence,
-        assignment_id,
-        assignments(students(first_name, year_group))
-      )
-    `)
+    .select("guardian_id")
     .eq("id", txn.id)
-    .single() as { data: {
-      guardian_id: string;
-      guardians: { email: string } | null;
-      transaction_lines: Array<{
-        amount_pence: number;
-        assignment_id: string;
-        assignments: { students: { first_name: string; year_group: string } | null } | null;
-      }>;
-    } | null };
+    .single();
 
-  if (!txnFull?.guardians?.email) return;
+  if (!txnRow?.guardian_id) return;
 
-  // Step 2: get payment request title + school from the first assignment
-  const firstAssignmentId = txnFull.transaction_lines?.[0]?.assignment_id;
+  const { data: guardian } = await db
+    .from("guardians")
+    .select("email")
+    .eq("id", txnRow.guardian_id)
+    .single();
+
+  if (!guardian?.email) return;
+
+  // Build children list from the lines array already fetched above
+  const children: Array<{ firstName: string; yearGroup: string; amountPence: number }> = [];
   let requestTitle = "";
   let schoolName = "";
 
-  if (firstAssignmentId) {
+  for (const line of lines) {
     const { data: asgn } = await db
       .from("assignments")
-      .select("payment_request_id")
-      .eq("id", firstAssignmentId)
+      .select("payment_request_id, student_id")
+      .eq("id", line.assignment_id)
       .single();
 
-    if (asgn?.payment_request_id) {
+    if (!asgn) continue;
+
+    const { data: student } = await db
+      .from("students")
+      .select("first_name, year_group")
+      .eq("id", asgn.student_id)
+      .single();
+
+    if (student) {
+      children.push({ firstName: student.first_name, yearGroup: student.year_group, amountPence: line.amount_pence });
+    }
+
+    if (!requestTitle && asgn.payment_request_id) {
       const { data: pr } = await db
         .from("payment_requests")
         .select("title, school_id")
@@ -399,21 +402,9 @@ async function handlePaymentSucceeded(
     }
   }
 
-  const children = (txnFull.transaction_lines ?? [])
-    .filter((l) => l.assignments?.students)
-    .map((l) => ({
-      firstName: l.assignments!.students!.first_name,
-      yearGroup: l.assignments!.students!.year_group,
-      amountPence: l.amount_pence,
-    }));
-
   if (children.length > 0 && requestTitle) {
-    await sendPaymentConfirmation({
-      email: txnFull.guardians.email,
-      requestTitle,
-      schoolName,
-      children,
-    }).catch((err) => console.error("[webhook] confirmation email failed:", err));
+    await sendPaymentConfirmation({ email: guardian.email, requestTitle, schoolName, children })
+      .catch((err) => console.error("[webhook] confirmation email failed:", err));
   } else {
     console.warn(`[webhook] skipped confirmation: children=${children.length} title="${requestTitle}"`);
   }
