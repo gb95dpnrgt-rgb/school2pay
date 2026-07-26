@@ -5,7 +5,7 @@ import { stripe } from "@/lib/stripe";
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/supabase/types";
 import { postPaymentEntries, postRefundEntries } from "@/lib/ledger";
-import { sendPaymentConfirmation, sendClubEnrollmentConfirmation } from "@/lib/email";
+import { sendPaymentConfirmation, sendClubEnrollmentConfirmation, sendShopOrderConfirmation } from "@/lib/email";
 
 // Raw body required for Stripe signature verification
 export const dynamic = "force-dynamic";
@@ -249,6 +249,37 @@ async function handleShopOrderPaid(
       await (db.from("shop_items") as any)
         .update({ stock: Math.max(0, item.stock - line.quantity), updated_at: new Date().toISOString() })
         .eq("id", line.item_id);
+    }
+  }
+
+  // Send order confirmation email
+  const { data: order } = await (db.from("shop_orders") as any)
+    .select("guardian_id")
+    .eq("id", order_id)
+    .single() as { data: { guardian_id: string } | null };
+
+  if (order?.guardian_id) {
+    const { data: guardian } = await db.from("guardians").select("email").eq("id", order.guardian_id).single();
+    const { data: school } = await db.from("schools").select("name").eq("id", school_id).single();
+
+    const itemDetails = await Promise.all(
+      (lines ?? []).map(async (line) => {
+        const { data: item } = await (db.from("shop_items") as any)
+          .select("name, price_pence")
+          .eq("id", line.item_id)
+          .single() as { data: { name: string; price_pence: number } | null };
+        return item ? { name: item.name, quantity: line.quantity, unitPricePence: item.price_pence } : null;
+      })
+    );
+
+    const validItems = itemDetails.filter(Boolean) as Array<{ name: string; quantity: number; unitPricePence: number }>;
+
+    if (guardian?.email && validItems.length > 0) {
+      await sendShopOrderConfirmation({
+        email: guardian.email,
+        schoolName: school?.name ?? "",
+        items: validItems,
+      }).catch((err) => console.error("[webhook] shop order email failed:", err));
     }
   }
 

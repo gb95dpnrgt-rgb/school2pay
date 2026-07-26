@@ -180,6 +180,67 @@ export async function sendPaymentConfirmation(data: PaymentConfirmationData): Pr
   return result?.id ?? null;
 }
 
+export interface ShopOrderConfirmationData {
+  email: string;
+  schoolName: string;
+  items: Array<{ name: string; quantity: number; unitPricePence: number }>;
+}
+
+export async function sendShopOrderConfirmation(data: ShopOrderConfirmationData): Promise<string | null> {
+  const totalPence = data.items.reduce((s, i) => s + i.unitPricePence * i.quantity, 0);
+  const totalStr = `£${(totalPence / 100).toFixed(2)}`;
+
+  const itemsHtml = data.items
+    .map((i) => `<tr>
+      <td style="padding:8px 0;border-bottom:1px solid #e5e7eb">${i.name} × ${i.quantity}</td>
+      <td style="padding:8px 0;border-bottom:1px solid #e5e7eb;text-align:right;font-weight:600">£${((i.unitPricePence * i.quantity) / 100).toFixed(2)}</td>
+    </tr>`)
+    .join("");
+
+  const html = `<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f9fafb;margin:0;padding:24px">
+  <div style="max-width:520px;margin:0 auto;background:#fff;border-radius:12px;border:1px solid #e5e7eb;overflow:hidden">
+    <div style="background:#16a34a;padding:24px;color:#fff">
+      <p style="margin:0;font-size:13px;opacity:0.8">${data.schoolName}</p>
+      <h1 style="margin:4px 0 0;font-size:20px;font-weight:700">Order confirmed ✓</h1>
+    </div>
+    <div style="padding:24px">
+      <p style="color:#374151;margin:0 0 16px">Dear Parent/Guardian,</p>
+      <p style="color:#374151;margin:0 0 20px">Thank you — your school shop order has been placed and payment confirmed.</p>
+      <table style="width:100%;border-collapse:collapse;margin-bottom:16px">
+        <thead><tr>
+          <th style="text-align:left;font-size:12px;color:#6b7280;padding-bottom:4px;text-transform:uppercase;letter-spacing:0.05em">Item</th>
+          <th style="text-align:right;font-size:12px;color:#6b7280;padding-bottom:4px;text-transform:uppercase;letter-spacing:0.05em">Amount</th>
+        </tr></thead>
+        <tbody>${itemsHtml}</tbody>
+        <tfoot><tr>
+          <td style="padding-top:12px;font-weight:700;color:#111827">Total paid</td>
+          <td style="padding-top:12px;font-weight:700;color:#16a34a;text-align:right">${totalStr}</td>
+        </tr></tfoot>
+      </table>
+      <p style="font-size:12px;color:#9ca3af;margin:0">Your order will be distributed by the school. Please keep this email as your receipt.<br>Questions? Contact ${data.schoolName} directly.</p>
+    </div>
+  </div>
+</body>
+</html>`;
+
+  const { data: result, error } = await resend.emails.send({
+    from: FROM,
+    to: data.email,
+    subject: `Order confirmed — ${data.schoolName} school shop`,
+    html,
+  });
+
+  if (error) {
+    console.error("Resend error (shop order):", error);
+    return null;
+  }
+
+  return result?.id ?? null;
+}
+
 export async function sendClubWaitlistConfirmation(data: {
   email: string;
   clubName: string;
