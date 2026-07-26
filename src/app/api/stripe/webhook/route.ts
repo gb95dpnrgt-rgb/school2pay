@@ -5,7 +5,7 @@ import { stripe } from "@/lib/stripe";
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/supabase/types";
 import { postPaymentEntries, postRefundEntries } from "@/lib/ledger";
-import { sendPaymentConfirmation, sendClubEnrollmentConfirmation, sendShopOrderConfirmation } from "@/lib/email";
+import { sendPaymentConfirmation, sendClubEnrollmentConfirmation, sendShopOrderConfirmation, sendDinnerTopUpConfirmation } from "@/lib/email";
 
 // Raw body required for Stripe signature verification
 export const dynamic = "force-dynamic";
@@ -169,6 +169,30 @@ async function handleCheckoutCompleted(
   await (db.from("dinner_wallets") as any)
     .update({ balance_pence: balanceAfter, updated_at: new Date().toISOString() })
     .eq("id", wallet.id);
+
+  // Send top-up confirmation email
+  const { data: guardian } = await db.from("guardians").select("email").eq("id", guardian_id).single();
+  const { data: school } = await db.from("schools").select("name").eq("id", school_id).single();
+
+  // Get student name from wallet
+  const { data: walletRow } = await (db.from("dinner_wallets") as any)
+    .select("student_id")
+    .eq("id", wallet_id)
+    .single() as { data: { student_id: string } | null };
+
+  const { data: student } = walletRow
+    ? await db.from("students").select("first_name").eq("id", walletRow.student_id).single()
+    : { data: null };
+
+  if (guardian?.email) {
+    await sendDinnerTopUpConfirmation({
+      email: guardian.email,
+      schoolName: school?.name ?? "",
+      studentName: student?.first_name ?? "your child",
+      amountPence,
+      balanceAfterPence: balanceAfter,
+    }).catch((err) => console.error("[webhook] dinner topup email failed:", err));
+  }
 
   console.log(`[webhook] dinner_topup: wallet ${wallet_id} credited ${amountPence}p → balance ${balanceAfter}p`);
 }

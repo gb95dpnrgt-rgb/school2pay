@@ -180,6 +180,61 @@ export async function sendPaymentConfirmation(data: PaymentConfirmationData): Pr
   return result?.id ?? null;
 }
 
+export interface DinnerTopUpConfirmationData {
+  email: string;
+  schoolName: string;
+  studentName: string;
+  amountPence: number;
+  balanceAfterPence: number;
+}
+
+export async function sendDinnerTopUpConfirmation(data: DinnerTopUpConfirmationData): Promise<string | null> {
+  const amountStr = `£${(data.amountPence / 100).toFixed(2)}`;
+  const balanceStr = `£${(data.balanceAfterPence / 100).toFixed(2)}`;
+
+  const html = `<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f9fafb;margin:0;padding:24px">
+  <div style="max-width:520px;margin:0 auto;background:#fff;border-radius:12px;border:1px solid #e5e7eb;overflow:hidden">
+    <div style="background:#2563eb;padding:24px;color:#fff">
+      <p style="margin:0;font-size:13px;opacity:0.8">${data.schoolName}</p>
+      <h1 style="margin:4px 0 0;font-size:20px;font-weight:700">Dinner money topped up ✓</h1>
+    </div>
+    <div style="padding:24px">
+      <p style="color:#374151;margin:0 0 16px">Dear Parent/Guardian,</p>
+      <p style="color:#374151;margin:0 0 20px">Your dinner money top-up for <strong>${data.studentName}</strong> has been received.</p>
+      <table style="width:100%;border-collapse:collapse;margin-bottom:16px">
+        <tr>
+          <td style="padding:8px 0;border-bottom:1px solid #e5e7eb;color:#6b7280">Amount added</td>
+          <td style="padding:8px 0;border-bottom:1px solid #e5e7eb;text-align:right;font-weight:600;color:#111827">${amountStr}</td>
+        </tr>
+        <tr>
+          <td style="padding:12px 0 0;font-weight:700;color:#111827">New balance</td>
+          <td style="padding:12px 0 0;text-align:right;font-weight:700;color:#2563eb">${balanceStr}</td>
+        </tr>
+      </table>
+      <p style="font-size:12px;color:#9ca3af;margin:0">Please keep this email as your receipt.<br>Questions? Contact ${data.schoolName} directly.</p>
+    </div>
+  </div>
+</body>
+</html>`;
+
+  const { data: result, error } = await resend.emails.send({
+    from: FROM,
+    to: data.email,
+    subject: `Dinner money topped up — ${data.studentName} — ${data.schoolName}`,
+    html,
+  });
+
+  if (error) {
+    console.error("Resend error (dinner topup):", error);
+    return null;
+  }
+
+  return result?.id ?? null;
+}
+
 export interface ShopOrderConfirmationData {
   email: string;
   schoolName: string;
