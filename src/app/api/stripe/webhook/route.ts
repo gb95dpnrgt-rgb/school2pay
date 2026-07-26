@@ -341,64 +341,41 @@ async function handlePaymentSucceeded(
   // Post double-entry ledger rows for the whole transaction gross amount
   await postPaymentEntries(db, txn.id, txn.amount_pence);
 
-  // Send confirmation email to guardian
+  // Send confirmation email — fetch everything in one query
   const { data: txnFull } = await db
     .from("transactions")
     .select(`
       guardian_id,
+      guardians(email),
       transaction_lines(
         amount_pence,
         assignments(
           amount_due_pence,
-          students(first_name, year_group)
+          students(first_name, year_group),
+          payment_requests(title, schools(name))
         )
       )
     `)
     .eq("id", txn.id)
-    .single();
+    .single() as { data: {
+      guardian_id: string;
+      guardians: { email: string } | null;
+      transaction_lines: Array<{
+        amount_pence: number;
+        assignments: {
+          amount_due_pence: number;
+          students: { first_name: string; year_group: string } | null;
+          payment_requests: { title: string; schools: { name: string } | null } | null;
+        } | null;
+      }>;
+    } | null };
 
-  if (txnFull?.guardian_id) {
-    const { data: guardian } = await db
-      .from("guardians")
-      .select("email")
-      .eq("id", txnFull.guardian_id)
-      .single();
+  if (txnFull?.guardians?.email) {
+    const firstLine = txnFull.transaction_lines?.[0];
+    const requestTitle = firstLine?.assignments?.payment_requests?.title ?? "";
+    const schoolName = (firstLine?.assignments?.payment_requests?.schools as { name: string } | null)?.name ?? "";
 
-    const { data: txnLine0 } = await db
-      .from("transaction_lines")
-      .select("assignment_id")
-      .eq("transaction_id", txn.id)
-      .limit(1)
-      .single();
-
-    let requestTitle = "";
-    let schoolName = "";
-
-    if (txnLine0) {
-      const { data: assignment } = await db
-        .from("assignments")
-        .select("payment_request_id")
-        .eq("id", txnLine0.assignment_id)
-        .single();
-
-      if (assignment) {
-        const { data: req } = await db
-          .from("payment_requests")
-          .select("title, schools(name)")
-          .eq("id", assignment.payment_request_id)
-          .single() as { data: { title: string; schools: { name: string } | null } | null };
-
-        requestTitle = req?.title ?? "";
-        schoolName = (req?.schools as { name: string } | null)?.name ?? "";
-      }
-    }
-
-    const lines = (txnFull.transaction_lines ?? []) as Array<{
-      amount_pence: number;
-      assignments: { amount_due_pence: number; students: { first_name: string; year_group: string } | null } | null;
-    }>;
-
-    const children = lines
+    const children = (txnFull.transaction_lines ?? [])
       .filter((l) => l.assignments?.students)
       .map((l) => ({
         firstName: l.assignments!.students!.first_name,
@@ -406,13 +383,15 @@ async function handlePaymentSucceeded(
         amountPence: l.amount_pence,
       }));
 
-    if (guardian?.email && children.length > 0 && requestTitle) {
+    if (children.length > 0 && requestTitle) {
       await sendPaymentConfirmation({
-        email: guardian.email,
+        email: txnFull.guardians.email,
         requestTitle,
         schoolName,
         children,
-      });
+      }).catch((err) => console.error("[webhook] confirmation email failed:", err));
+    } else {
+      console.warn(`[webhook] skipped confirmation email: children=${children.length} requestTitle="${requestTitle}"`);
     }
   }
 }
