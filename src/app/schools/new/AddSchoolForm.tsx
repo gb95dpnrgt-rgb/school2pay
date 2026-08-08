@@ -9,43 +9,54 @@ export default function AddSchoolForm({
   action: (formData: FormData) => Promise<void>;
   existingTrustName: string | null;
 }) {
-  const [trustMode, setTrustMode] = useState<"existing" | "new">(
-    existingTrustName ? "existing" : "new"
+  const [trustMode, setTrustMode] = useState<"existing" | "new" | "standalone">(
+    existingTrustName ? "existing" : "standalone"
   );
 
   return (
     <form action={action} className="space-y-4">
       <input type="hidden" name="trust_mode" value={trustMode} />
 
-      {existingTrustName && (
-        <div className="space-y-2">
-          <label className="block text-sm font-medium text-gray-700">Trust</label>
-          <div className="flex gap-3">
+      <div className="space-y-2">
+        <label className="block text-sm font-medium text-gray-700">Trust / Academy</label>
+        <div className="flex flex-col gap-2">
+          <button
+            type="button"
+            onClick={() => setTrustMode("standalone")}
+            className={`w-full rounded-lg border px-3 py-2 text-sm font-medium text-left transition-colors ${
+              trustMode === "standalone"
+                ? "border-blue-600 bg-blue-50 text-blue-700"
+                : "border-gray-300 text-gray-600 hover:border-gray-400"
+            }`}
+          >
+            Standalone school <span className="font-normal text-xs opacity-70">(not part of a trust)</span>
+          </button>
+          {existingTrustName && (
             <button
               type="button"
               onClick={() => setTrustMode("existing")}
-              className={`flex-1 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
+              className={`w-full rounded-lg border px-3 py-2 text-sm font-medium text-left transition-colors ${
                 trustMode === "existing"
                   ? "border-blue-600 bg-blue-50 text-blue-700"
                   : "border-gray-300 text-gray-600 hover:border-gray-400"
               }`}
             >
-              Add to {existingTrustName}
+              Add to existing trust <span className="font-normal text-xs opacity-70">({existingTrustName})</span>
             </button>
-            <button
-              type="button"
-              onClick={() => setTrustMode("new")}
-              className={`flex-1 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
-                trustMode === "new"
-                  ? "border-blue-600 bg-blue-50 text-blue-700"
-                  : "border-gray-300 text-gray-600 hover:border-gray-400"
-              }`}
-            >
-              New trust
-            </button>
-          </div>
+          )}
+          <button
+            type="button"
+            onClick={() => setTrustMode("new")}
+            className={`w-full rounded-lg border px-3 py-2 text-sm font-medium text-left transition-colors ${
+              trustMode === "new"
+                ? "border-blue-600 bg-blue-50 text-blue-700"
+                : "border-gray-300 text-gray-600 hover:border-gray-400"
+            }`}
+          >
+            New trust / academy <span className="font-normal text-xs opacity-70">(enter trust name)</span>
+          </button>
         </div>
-      )}
+      </div>
 
       {trustMode === "new" && (
         <div>

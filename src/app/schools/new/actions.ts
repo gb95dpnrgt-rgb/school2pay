@@ -38,8 +38,8 @@ export async function addSchool(formData: FormData) {
       redirect(`/schools/new?error=${encodeURIComponent("Could not find existing trust")}`);
     }
     trustId = existing.trust_id;
-  } else {
-    // Create a new trust
+  } else if (trustMode === "new") {
+    // Create a named trust
     const legalName = (formData.get("legal_name") as string).trim();
     const { data: trust, error: trustError } = await admin
       .from("trusts")
@@ -49,6 +49,18 @@ export async function addSchool(formData: FormData) {
 
     if (trustError || !trust) {
       redirect(`/schools/new?error=${encodeURIComponent("Failed to create trust")}`);
+    }
+    trustId = trust.id;
+  } else {
+    // Standalone school — create a trust using the school name as the legal entity name
+    const { data: trust, error: trustError } = await admin
+      .from("trusts")
+      .insert({ legal_name: schoolName })
+      .select("id")
+      .single();
+
+    if (trustError || !trust) {
+      redirect(`/schools/new?error=${encodeURIComponent("Failed to create school entity")}`);
     }
     trustId = trust.id;
   }
