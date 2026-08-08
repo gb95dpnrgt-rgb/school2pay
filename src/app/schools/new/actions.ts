@@ -75,9 +75,14 @@ export async function addSchool(formData: FormData) {
     redirect(`/schools/new?error=${encodeURIComponent("Failed to create school")}`);
   }
 
-  await admin
+  const { error: adminUserError } = await admin
     .from("admin_users")
     .insert({ school_id: school.id, auth_user_id: user.id, email: user.email! });
+
+  if (adminUserError) {
+    console.error("[addSchool] admin_users insert failed:", adminUserError);
+    redirect(`/schools/new?error=${encodeURIComponent("School created but failed to link your account: " + adminUserError.message)}`);
+  }
 
   redirect(`/dashboard?school=${school.id}`);
 }
