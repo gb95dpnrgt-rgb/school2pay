@@ -135,8 +135,13 @@ async function getStripeStatus(stripeAccountId: string | null | undefined): Prom
   }
 }
 
-export default async function DashboardPage() {
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ school?: string }>;
+}) {
   const supabase = await createClient();
+  const params = await searchParams;
 
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
@@ -149,10 +154,17 @@ export default async function DashboardPage() {
     .maybeSingle() as { data: { id: string } | null };
   if (trustAdmin) redirect("/trust/dashboard");
 
-  const { data: school } = await supabase
+  // Fetch all schools this admin is linked to
+  const { data: allSchools } = await supabase
     .from("schools")
-    .select("id, name, trust_id, trusts!schools_trust_id_fkey(id, legal_name, stripe_account_id)")
-    .single();
+    .select("id, name, trust_id, trusts!schools_trust_id_fkey(id, legal_name, stripe_account_id)") as {
+      data: Array<{ id: string; name: string; trust_id: string; trusts: { id: string; legal_name: string; stripe_account_id: string | null } | null }> | null
+    };
+
+  // Pick the school from query param or default to first
+  const school = (params.school && allSchools?.find(s => s.id === params.school))
+    ?? allSchools?.[0]
+    ?? null;
 
   const trust = school?.trusts && !Array.isArray(school.trusts) ? school.trusts : null;
   const [stripeStatus, analytics] = await Promise.all([
@@ -176,13 +188,40 @@ export default async function DashboardPage() {
 
       <div id="main-content" className="max-w-4xl mx-auto px-6 py-10 space-y-6">
         {/* School header */}
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">
-            {school?.name ?? "Your school"}
-          </h1>
-          {trust && (
-            <p className="mt-1 text-sm text-gray-500">{trust.legal_name}</p>
-          )}
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">
+              {school?.name ?? "Your school"}
+            </h1>
+            {trust && (
+              <p className="mt-1 text-sm text-gray-500">{trust.legal_name}</p>
+            )}
+          </div>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            {(allSchools?.length ?? 0) > 1 && (
+              <div className="flex gap-1 flex-wrap justify-end">
+                {allSchools!.map(s => (
+                  <a
+                    key={s.id}
+                    href={`/dashboard?school=${s.id}`}
+                    className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
+                      s.id === school?.id
+                        ? "border-blue-600 bg-blue-50 text-blue-700"
+                        : "border-gray-300 text-gray-600 hover:border-gray-400 bg-white"
+                    }`}
+                  >
+                    {s.name}
+                  </a>
+                ))}
+              </div>
+            )}
+            <a
+              href="/schools/new"
+              className="rounded-lg border border-dashed border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-500 hover:border-blue-400 hover:text-blue-600 transition-colors bg-white"
+            >
+              + Add school
+            </a>
+          </div>
         </div>
 
         {/* Admin info */}
