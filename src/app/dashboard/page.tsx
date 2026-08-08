@@ -5,6 +5,7 @@ import { logout } from "@/app/login/actions";
 import { stripe } from "@/lib/stripe";
 import { formatPence } from "@/lib/fees";
 import InviteAdminForm from "./InviteAdminForm";
+import ArchiveSchoolButton from "@/app/schools/[id]/archive/ArchiveSchoolButton";
 import type { Database } from "@/lib/supabase/types";
 
 type StripeStatus = "not_started" | "in_progress" | "complete";
@@ -157,8 +158,9 @@ export default async function DashboardPage({
   // Fetch all schools this admin is linked to
   const { data: allSchools } = await supabase
     .from("schools")
-    .select("id, name, trust_id, trusts!schools_trust_id_fkey(id, legal_name, stripe_account_id)") as {
-      data: Array<{ id: string; name: string; trust_id: string; trusts: { id: string; legal_name: string; stripe_account_id: string | null } | null }> | null
+    .select("id, name, trust_id, archived_at, trusts!schools_trust_id_fkey(id, legal_name, stripe_account_id)")
+    .is("archived_at", null) as {
+      data: Array<{ id: string; name: string; trust_id: string; archived_at: string | null; trusts: { id: string; legal_name: string; stripe_account_id: string | null } | null }> | null
     };
 
   // Pick the school from query param or default to first
@@ -199,19 +201,23 @@ export default async function DashboardPage({
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
             {(allSchools?.length ?? 0) > 1 && (
-              <div className="flex gap-1 flex-wrap justify-end">
+              <div className="flex flex-col gap-1 items-end">
                 {allSchools!.map(s => (
-                  <a
-                    key={s.id}
-                    href={`/dashboard?school=${s.id}`}
-                    className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
-                      s.id === school?.id
-                        ? "border-blue-600 bg-blue-50 text-blue-700"
-                        : "border-gray-300 text-gray-600 hover:border-gray-400 bg-white"
-                    }`}
-                  >
-                    {s.name}
-                  </a>
+                  <div key={s.id} className="flex items-center gap-1">
+                    <a
+                      href={`/dashboard?school=${s.id}`}
+                      className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
+                        s.id === school?.id
+                          ? "border-blue-600 bg-blue-50 text-blue-700"
+                          : "border-gray-300 text-gray-600 hover:border-gray-400 bg-white"
+                      }`}
+                    >
+                      {s.name}
+                    </a>
+                    {s.id !== school?.id && (
+                      <ArchiveSchoolButton schoolId={s.id} schoolName={s.name} />
+                    )}
+                  </div>
                 ))}
               </div>
             )}
