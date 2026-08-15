@@ -1,10 +1,12 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 
 export default function StripeButtonClient({ label }: { label: string }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const router = useRouter();
 
   async function handleClick() {
     setLoading(true);
@@ -13,7 +15,9 @@ export default function StripeButtonClient({ label }: { label: string }) {
       const res = await fetch("/api/onboarding/stripe-link", { method: "POST" });
       const data = await res.json();
       if (!res.ok || !data.url) throw new Error(data.error ?? "Failed to start Stripe setup");
-      window.location.href = data.url;
+      // Extract path from URL to keep Next.js client-side navigation (preserves session cookies)
+      const path = data.url.startsWith("http") ? new URL(data.url).pathname : data.url;
+      router.push(path);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Something went wrong");
       setLoading(false);
