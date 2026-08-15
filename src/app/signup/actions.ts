@@ -19,18 +19,26 @@ export async function signup(formData: FormData) {
 
   const admin = getAdminClient();
 
-  const { data: authData, error: authError } = await admin.auth.admin.createUser({
-    email,
-    password,
-    email_confirm: true,
-  });
-
-  if (authError || !authData.user) {
-    redirect(`/signup?error=${encodeURIComponent(authError?.message ?? "Failed to create account")}`);
+  // Check if email already exists
+  const { data: existing } = await admin.auth.admin.listUsers();
+  const emailTaken = existing?.users?.some((u) => u.email === email.toLowerCase().trim());
+  if (emailTaken) {
+    redirect(`/signup?error=${encodeURIComponent("An account with this email already exists. Try signing in instead.")}`);
   }
 
   const supabase = await createServerClient();
-  await supabase.auth.signInWithPassword({ email, password });
 
-  redirect("/onboarding");
+  const { error: authError } = await supabase.auth.signUp({
+    email,
+    password,
+    options: {
+      emailRedirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/onboarding`,
+    },
+  });
+
+  if (authError) {
+    redirect(`/signup?error=${encodeURIComponent(authError.message ?? "Failed to create account")}`);
+  }
+
+  redirect("/signup/verify");
 }
