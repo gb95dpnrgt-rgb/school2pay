@@ -94,32 +94,32 @@ export default function Home() {
             {
               icon: "💳",
               title: "Instant card payments",
-              body: "Parents pay by card in under 60 seconds — no app to download, no account to create. Just a link.",
+              body: "Parents pay in seconds from any device. No app, no account, no hassle — just a payment confirmed.",
             },
             {
               icon: "📋",
               title: "Digital consent forms",
-              body: "Consent forms built into the payment flow. Emergency contacts, medical info, and signatures — all collected and stored securely.",
+              body: "Consent collected alongside payment in one step. No more separate paper slips going missing.",
             },
             {
               icon: "📧",
               title: "Automatic reminders",
-              body: "Unpaid? The system chases parents for you. Email reminders go out automatically so your staff don't have to.",
+              body: "Unpaid balances are chased automatically before due dates. Your staff focus on teaching, not admin.",
             },
             {
               icon: "📊",
-              title: "Real-time dashboard",
-              body: "See who's paid, who hasn't, and how much you've collected — live. Export to CSV in one click for your finance team.",
+              title: "Live dashboard",
+              body: "See collection rates, outstanding balances, and payment history at a glance. One-click CSV export for finance.",
             },
             {
               icon: "🔒",
-              title: "GDPR compliant",
-              body: "Children's data is school-scoped and encrypted. Medical information is flagged as special-category data and auto-deleted after the trip.",
+              title: "Built for UK schools",
+              body: "GDPR compliant, ICO registered, and built around UK education data standards from day one.",
             },
             {
               icon: "💰",
               title: "Transparent pricing",
-              body: "Schools pay nothing. Parents pay nothing extra. We take 50p per transaction — that's it. No hidden fees, no annual licence.",
+              body: "Schools pay nothing monthly. No contracts, no setup fees, no surprises. Just a small fee per transaction.",
             },
           ].map((f) => (
             <div key={f.title} className="rounded-2xl border border-gray-100 bg-white p-6 space-y-3 shadow-sm">
@@ -135,7 +135,7 @@ export default function Home() {
       <section id="how-it-works" className="bg-blue-600 py-24">
         <div className="max-w-5xl mx-auto px-6 space-y-16">
           <div className="text-center space-y-3">
-            <h2 className="text-3xl md:text-4xl font-bold text-white">How it works</h2>
+            <h2 className="text-3xl md:text-4xl font-bold text-white">Results, not process</h2>
             <p className="text-lg text-blue-100 max-w-xl mx-auto">
               Up and running in minutes. No IT department needed.
             </p>
@@ -143,14 +143,14 @@ export default function Home() {
 
           <div className="grid md:grid-cols-4 gap-8">
             {[
-              { step: "1", title: "Upload your students", body: "Import a simple CSV with first names, year groups, and parent email addresses." },
-              { step: "2", title: "Create a payment request", body: "Set the trip name, amount, due date, and optional consent form. Done in under a minute." },
-              { step: "3", title: "Parents get a link", body: "An email goes to every parent with a secure personal payment link — no login required." },
-              { step: "4", title: "Money lands in school", body: "Stripe pays directly into the school's bank account. You see everything in your dashboard." },
+              { icon: "⚡", title: "Ready in minutes", body: "Set up your school, connect your bank account, and send your first payment request — all in one sitting." },
+              { icon: "💸", title: "Parents pay instantly", body: "One click from their inbox to payment confirmed. No friction, no forgotten envelopes, no chasing." },
+              { icon: "📬", title: "Reminders handle themselves", body: "Unpaid? The system follows up automatically before the due date so your staff don't have to." },
+              { icon: "🏦", title: "Money in your account", body: "Funds settle directly into your school's bank account. Full visibility in your dashboard." },
             ].map((s) => (
-              <div key={s.step} className="text-center space-y-3">
-                <div className="mx-auto h-12 w-12 rounded-full bg-white/20 flex items-center justify-center text-xl font-bold text-white">
-                  {s.step}
+              <div key={s.title} className="text-center space-y-3">
+                <div className="mx-auto h-12 w-12 rounded-full bg-white/20 flex items-center justify-center text-2xl">
+                  {s.icon}
                 </div>
                 <h3 className="font-semibold text-white">{s.title}</h3>
                 <p className="text-sm text-blue-100 leading-relaxed">{s.body}</p>
@@ -201,13 +201,13 @@ export default function Home() {
           <div className="rounded-2xl border border-gray-200 bg-gray-50 p-8 space-y-6">
             <div>
               <p className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Per transaction</p>
-              <p className="mt-2 text-5xl font-extrabold text-gray-900">50p</p>
-              <p className="mt-1 text-gray-500">flat fee per payment</p>
+              <p className="mt-2 text-5xl font-extrabold text-gray-900">Low</p>
+              <p className="mt-1 text-gray-500">per-transaction fee — contact us for details</p>
             </div>
             <div className="space-y-3 text-sm text-gray-600">
-              <p>The 50p application fee covers our platform costs. Stripe's card processing fee (~1.5% + 20p) is separate and netted off at source.</p>
-              <p className="font-medium text-gray-700">Example: a £25 trip payment costs the school approximately £1.08 in total fees — less than a stamp and an envelope.</p>
-              <p className="text-gray-400 text-xs">UK consumer cards only. No surcharging to parents — illegal in the UK since 2018 and we don't do it.</p>
+              <p>A small per-transaction fee covers platform and card processing costs. All fees are netted off at source — no invoices, no monthly bills.</p>
+              <p className="font-medium text-gray-700">For a typical school trip payment, the total cost is less than a stamp and an envelope.</p>
+              <p className="text-gray-400 text-xs">No surcharging to parents — we comply fully with UK payment regulations.</p>
             </div>
           </div>
         </div>
