@@ -23,10 +23,10 @@ export default function Home() {
               Sign in
             </Link>
             <a
-              href="#contact"
+              href="/signup"
               className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
             >
-              Book a demo
+              Get started
             </a>
           </div>
         </div>
@@ -47,10 +47,10 @@ export default function Home() {
         </p>
         <div className="flex flex-col sm:flex-row gap-4 justify-center">
           <a
-            href="#contact"
+            href="/signup"
             className="rounded-xl bg-blue-600 px-8 py-4 text-base font-semibold text-white hover:bg-blue-700 shadow-lg shadow-blue-100"
           >
-            Book a free demo
+            Get started free
           </a>
           <a
             href="#how-it-works"
@@ -191,7 +191,7 @@ export default function Home() {
               ))}
             </ul>
             <a
-              href="#contact"
+              href="/signup"
               className="block text-center rounded-xl bg-blue-600 px-6 py-3 text-sm font-semibold text-white hover:bg-blue-700"
             >
               Get started free
