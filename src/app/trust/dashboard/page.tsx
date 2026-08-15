@@ -190,6 +190,7 @@ function TrustNav({ trustName }: { trustName: string }) {
         <span className="text-lg font-bold text-gray-900">School2Pay</span>
         <span className="text-gray-300">|</span>
         <span className="text-sm font-medium text-gray-900">{trustName}</span>
+        <a href="/trust/reports" className="text-sm text-gray-500 hover:text-gray-800">Reports</a>
       </div>
       <form action={logout}>
         <button type="submit" className="text-sm text-gray-500 hover:text-gray-700">Sign out</button>
