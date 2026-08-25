@@ -27,7 +27,9 @@ interface Analytics {
   overdueRequestCount: number;
   thisMonthPence: number;
   lastMonthPence: number;
+  studentCount: number;
   urgentRequests: Array<{ id: string; title: string; dueDate: string; outstandingPence: number; unpaidCount: number }>;
+  recentTransactions: Array<{ id: string; amount_pence: number; created_at: string; guardian_email: string | null }>;
 }
 
 async function getAnalytics(schoolId: string): Promise<Analytics> {
@@ -91,6 +93,26 @@ async function getAnalytics(schoolId: string): Promise<Analytics> {
   const thisMonthPence = (thisTxns ?? []).reduce((s, t) => s + t.amount_pence, 0);
   const lastMonthPence = (lastTxns ?? []).reduce((s, t) => s + t.amount_pence, 0);
 
+  // Student count
+  const { count: studentCount } = await admin
+    .from("students")
+    .select("id", { count: "exact", head: true })
+    .eq("school_id", schoolId);
+
+  // Recent transactions (last 8)
+  const { data: recentTxnRows } = await admin
+    .from("transactions")
+    .select("id, amount_pence, created_at, guardian_id")
+    .eq("status", "succeeded")
+    .order("created_at", { ascending: false })
+    .limit(8);
+
+  const recentTransactions: Analytics["recentTransactions"] = [];
+  for (const t of recentTxnRows ?? []) {
+    const { data: g } = await admin.from("guardians").select("email").eq("id", t.guardian_id).single();
+    recentTransactions.push({ id: t.id, amount_pence: t.amount_pence, created_at: t.created_at, guardian_email: g?.email ?? null });
+  }
+
   // Urgent: open requests due within 7 days with outstanding balance
   const in7Days = new Date(now);
   in7Days.setDate(in7Days.getDate() + 7);
@@ -122,7 +144,9 @@ async function getAnalytics(schoolId: string): Promise<Analytics> {
     overdueRequestCount,
     thisMonthPence,
     lastMonthPence,
+    studentCount: studentCount ?? 0,
     urgentRequests,
+    recentTransactions,
   };
 }
 
@@ -177,7 +201,13 @@ export default async function DashboardPage({
   return (
     <main className="min-h-screen bg-gray-50">
       <nav aria-label="Main navigation" className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
-        <span className="text-lg font-bold text-gray-900">School2Pay</span>
+        <div className="flex items-center gap-4">
+          <span className="text-lg font-bold text-gray-900">School2Pay</span>
+          <span className="text-gray-300">|</span>
+          <a href="/requests" className="text-sm text-gray-500 hover:text-gray-800">Requests</a>
+          <a href="/students" className="text-sm text-gray-500 hover:text-gray-800">Students</a>
+          <a href="/reports" className="text-sm text-gray-500 hover:text-gray-800">Reports</a>
+        </div>
         <form action={logout}>
           <button
             type="submit"
@@ -282,6 +312,19 @@ export default async function DashboardPage({
         {/* Analytics */}
         {analytics && stripeStatus === "complete" && (
           <section aria-label="Payment analytics" className="space-y-4">
+            {/* Quick actions */}
+            <div className="flex flex-wrap gap-2">
+              <a href="/requests/new" className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700">
+                + New payment request
+              </a>
+              <a href="/students" className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                Manage students
+              </a>
+              <a href="/requests" className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                All requests
+              </a>
+            </div>
+
             {/* KPI row */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               <KpiCard label="Collected (open requests)" value={formatPence(analytics.totalCollectedPence)} sub="gross" />
@@ -294,6 +337,13 @@ export default async function DashboardPage({
                   ? `${analytics.thisMonthPence >= analytics.lastMonthPence ? "▲" : "▼"} ${formatPence(Math.abs(analytics.thisMonthPence - analytics.lastMonthPence))} vs last month`
                   : "gross collected"}
               />
+            </div>
+
+            {/* Secondary stats */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              <KpiCard label="Students" value={analytics.studentCount.toString()} sub="registered" />
+              <KpiCard label="Open requests" value={analytics.openRequestCount.toString()} sub={analytics.overdueRequestCount > 0 ? `${analytics.overdueRequestCount} overdue` : "active"} highlight={analytics.overdueRequestCount > 0} />
+              <KpiCard label="Expected total" value={formatPence(analytics.totalExpectedPence)} sub="across open requests" />
             </div>
 
             {/* Collection progress bar */}
@@ -313,6 +363,29 @@ export default async function DashboardPage({
                   <span>{formatPence(analytics.totalCollectedPence)} collected</span>
                   <span>{formatPence(analytics.totalExpectedPence)} expected</span>
                 </div>
+              </div>
+            )}
+
+            {/* Recent transactions */}
+            {analytics.recentTransactions.length > 0 && (
+              <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
+                <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+                  <h2 className="text-sm font-semibold text-gray-800">Recent payments</h2>
+                  <a href="/reports" className="text-xs text-blue-600 hover:underline">View all →</a>
+                </div>
+                <ul className="divide-y divide-gray-50">
+                  {analytics.recentTransactions.map((t) => (
+                    <li key={t.id} className="flex items-center justify-between px-4 py-3">
+                      <div>
+                        <p className="text-sm font-medium text-gray-800">{t.guardian_email ?? "Parent"}</p>
+                        <p className="text-xs text-gray-400">
+                          {new Date(t.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
+                        </p>
+                      </div>
+                      <span className="text-sm font-semibold text-green-700">{formatPence(t.amount_pence)}</span>
+                    </li>
+                  ))}
+                </ul>
               </div>
             )}
 
