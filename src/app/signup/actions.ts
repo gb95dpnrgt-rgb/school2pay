@@ -3,10 +3,9 @@
 import { redirect } from "next/navigation";
 import { createClient as createAdminClient } from "@supabase/supabase-js";
 import { sendVerificationEmail } from "@/lib/email";
-import type { Database } from "@/lib/supabase/types";
 
 function getAdminClient() {
-  return createAdminClient<Database>(
+  return createAdminClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
     { auth: { autoRefreshToken: false, persistSession: false } }
@@ -47,9 +46,10 @@ export async function signup(formData: FormData) {
   const token = generateToken();
   const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
 
-  const { error: tokenError } = await admin
-    .from("email_verifications" as keyof Database["public"]["Tables"])
-    .insert({ user_id: authData.user.id, token, expires_at: expiresAt } as never);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error: tokenError } = await (admin as any)
+    .from("email_verifications")
+    .insert({ user_id: authData.user.id, token, expires_at: expiresAt });
 
   if (tokenError) {
     console.error("Failed to store verification token:", tokenError);
