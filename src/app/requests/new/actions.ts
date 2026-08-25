@@ -26,14 +26,19 @@ export async function createPaymentRequest(formData: FormData) {
   const description = (formData.get("description") as string)?.trim() || null;
   const amountPence = parseInt(formData.get("amount_pence") as string, 10);
   const dueDate = formData.get("due_date") as string;
+  const targetMode = formData.get("target_mode") as string;
   const targetValue = formData.get("target") as string;
+  const studentIds = formData.getAll("student_ids") as string[];
   const allowPartial = formData.get("allow_partial") === "on";
 
   if (!title || !amountPence || amountPence <= 0 || !dueDate) {
     throw new Error("Missing required fields");
   }
+  if (targetMode === "specific" && studentIds.length === 0) {
+    throw new Error("Please select at least one student");
+  }
 
-  const yearGroups = targetValue === "all" ? null : [targetValue];
+  const yearGroups = targetValue === "all" || targetMode === "specific" ? null : [targetValue];
 
   const admin = getAdminClient();
 
@@ -53,19 +58,28 @@ export async function createPaymentRequest(formData: FormData) {
 
   if (reqErr || !req) throw new Error(reqErr?.message ?? "Failed to create payment request");
 
-  let studentsQuery = admin
-    .from("students")
-    .select("id")
-    .eq("school_id", school.id);
+  let studentIdList: string[];
 
-  if (yearGroups) {
-    studentsQuery = studentsQuery.in("year_group", yearGroups);
+  if (targetMode === "specific") {
+    studentIdList = studentIds;
+  } else {
+    let studentsQuery = admin
+      .from("students")
+      .select("id")
+      .eq("school_id", school.id);
+
+    if (yearGroups) {
+      studentsQuery = studentsQuery.in("year_group", yearGroups);
+    }
+
+    const { data: students, error: studErr } = await studentsQuery;
+    if (studErr) throw new Error(studErr.message);
+    studentIdList = (students ?? []).map((s) => s.id);
   }
 
-  const { data: students, error: studErr } = await studentsQuery;
-  if (studErr) throw new Error(studErr.message);
+  const students = studentIdList.map((id) => ({ id }));
 
-  if (students && students.length > 0) {
+  if (students.length > 0) {
     const assignments = students.map((s) => ({
       payment_request_id: req.id,
       student_id: s.id,

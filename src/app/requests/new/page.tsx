@@ -33,19 +33,18 @@ export default async function NewRequestPage() {
 
   const yearGroups = [...new Set((yearGroupRows ?? []).map((r) => r.year_group).filter(Boolean))];
 
-  const { count: totalStudents } = await admin
+  const { data: allStudents } = await admin
     .from("students")
-    .select("id", { count: "exact", head: true })
-    .eq("school_id", school.id);
+    .select("id, first_name, year_group")
+    .eq("school_id", school.id)
+    .order("year_group")
+    .order("first_name");
+
+  const totalStudents = allStudents?.length ?? 0;
 
   const yearGroupCounts: Record<string, number> = {};
   for (const yg of yearGroups) {
-    const { count } = await admin
-      .from("students")
-      .select("id", { count: "exact", head: true })
-      .eq("school_id", school.id)
-      .eq("year_group", yg);
-    yearGroupCounts[yg] = count ?? 0;
+    yearGroupCounts[yg] = (allStudents ?? []).filter((s) => s.year_group === yg).length;
   }
 
   return (
@@ -97,9 +96,10 @@ export default async function NewRequestPage() {
           </div>
 
           <TargetAndFees
-            totalStudents={totalStudents ?? 0}
+            totalStudents={totalStudents}
             yearGroups={yearGroups}
             yearGroupCounts={yearGroupCounts}
+            students={allStudents ?? []}
           />
 
           <div className="flex items-start gap-3">
