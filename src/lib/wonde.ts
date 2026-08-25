@@ -1,149 +1,121 @@
-/**
- * Wonde API client
- * Docs: https://docs.wonde.com
- *
- * Wonde is a middleware that connects to UK school MIS systems
- * (SIMS, Arbor, Bromcom, iSAMS etc.) and provides a unified REST API.
- *
- * Each school has a unique Wonde school ID and grants access via their
- * admin portal. The school ID looks like: A0000000000
- *
- * Base URL:
- *   Sandbox: https://api.wonde.com/v1.0/ (use school ID A0000000000)
- *   Live:    https://api.wonde.com/v1.0/
- */
-
 const WONDE_BASE = "https://api.wonde.com/v1.0";
-const SANDBOX_SCHOOL_ID = "A0000000000"; // Wonde's sandbox school
 
-export type WondeStudent = {
+export interface WondeStudent {
   id: string;
   forename: string;
-  surname: string; // we don't store this per CLAUDE.md but need it to identify duplicates
-  year_group?: { data?: { name?: string } };
+  year: { data?: { name: string } };
+  classes?: { data: { name: string }[] };
   contacts?: {
-    data: Array<{
-      id: string;
-      forename: string;
-      surname: string;
-      relationship_to_student: string;
-      emails?: { data: Array<{ email: string; main: boolean }> };
-      phones?: { data: Array<{ phone: string; main: boolean }> };
-    }>;
+    data: {
+      email?: { address: string };
+      telephone?: { number: string };
+      relationship_to_student?: string;
+      parental_responsibility: boolean;
+    }[];
   };
-};
+}
 
-export type WondeSyncPreview = {
-  students: Array<{
-    firstName: string;
-    yearGroup: string;
-    guardians: Array<{
-      email: string;
-      phone: string | null;
-      relationship: string;
-    }>;
-  }>;
-  totalStudents: number;
-  totalGuardians: number;
-  schoolName: string;
-};
+async function wondeGet(path: string, schoolToken: string) {
+  const res = await fetch(`${WONDE_BASE}${path}`, {
+    headers: { Authorization: `Bearer ${schoolToken}` },
+  });
+  if (!res.ok) throw new Error(`Wonde API error: ${res.status} ${await res.text()}`);
+  return res.json();
+}
 
-export class WondeClient {
-  private token: string;
-  private schoolId: string;
+export async function syncSchoolFromWonde(
+  schoolToken: string,
+  schoolId: string
+): Promise<{ students: number; guardians: number; links: number }> {
+  const { createClient } = await import("@supabase/supabase-js");
+  const db = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } }
+  );
 
-  constructor(token: string, schoolId?: string) {
-    this.token = token;
-    this.schoolId = schoolId ?? SANDBOX_SCHOOL_ID;
+  let page = 1;
+  let hasMore = true;
+  let totalStudents = 0;
+  let totalGuardians = 0;
+  let totalLinks = 0;
+
+  while (hasMore) {
+    const { data, meta } = await wondeGet(
+      `/students?include=contacts,classes,year&per_page=200&page=${page}`,
+      schoolToken
+    );
+
+    const counts = await upsertBatch(db, data as WondeStudent[], schoolId);
+    totalStudents += counts.students;
+    totalGuardians += counts.guardians;
+    totalLinks += counts.links;
+
+    hasMore = !!meta?.pagination?.next;
+    page++;
   }
 
-  private async fetch<T>(path: string): Promise<T> {
-    const url = `${WONDE_BASE}/schools/${this.schoolId}${path}`;
-    const res = await fetch(url, {
-      headers: {
-        Authorization: `Bearer ${this.token}`,
-        "Content-Type": "application/json",
-      },
-      next: { revalidate: 0 },
-    });
+  return { students: totalStudents, guardians: totalGuardians, links: totalLinks };
+}
 
-    if (!res.ok) {
-      const text = await res.text().catch(() => "");
-      throw new Error(`Wonde API error ${res.status}: ${text}`);
+async function upsertBatch(
+  db: ReturnType<typeof import("@supabase/supabase-js").createClient>,
+  wondeStudents: WondeStudent[],
+  schoolId: string
+) {
+  let students = 0;
+  let guardians = 0;
+  let links = 0;
+
+  for (const ws of wondeStudents) {
+    const { data: student } = await (db as any)
+      .from("students")
+      .upsert(
+        {
+          school_id: schoolId,
+          first_name: ws.forename,
+          year_group: ws.year?.data?.name ?? null,
+          class_name: ws.classes?.data?.[0]?.name ?? null,
+          wonde_id: ws.id,
+        },
+        { onConflict: "wonde_id" }
+      )
+      .select("id")
+      .single();
+
+    if (!student) continue;
+    students++;
+
+    for (const contact of ws.contacts?.data ?? []) {
+      if (!contact.email?.address) continue;
+      if (!contact.parental_responsibility) continue;
+
+      const email = contact.email.address.toLowerCase().trim();
+      const phone = contact.telephone?.number ?? null;
+
+      const { data: guardian } = await db
+        .from("guardians")
+        .upsert({ email, phone }, { onConflict: "email" })
+        .select("id")
+        .single();
+
+      if (!guardian) continue;
+      guardians++;
+
+      const { error: linkErr } = await db
+        .from("guardian_student")
+        .upsert(
+          {
+            guardian_id: guardian.id,
+            student_id: student.id,
+            relationship: contact.relationship_to_student ?? "parent",
+          },
+          { onConflict: "guardian_id,student_id" }
+        );
+
+      if (!linkErr) links++;
     }
-
-    return res.json();
   }
 
-  /** Fetch school info to validate credentials */
-  async getSchool(): Promise<{ data: { name: string; urn: string } }> {
-    return this.fetch("/");
-  }
-
-  /** Fetch all students with year group and contacts, paginated */
-  async getAllStudents(): Promise<WondeStudent[]> {
-    const students: WondeStudent[] = [];
-    let next: string | null =
-      `/students?include=year_group,contacts.emails,contacts.phones&per_page=200`;
-
-    while (next) {
-      const res = await this.fetch<{
-        data: WondeStudent[];
-        meta: { pagination: { next: string | null } };
-      }>(next);
-
-      students.push(...res.data);
-      next = res.meta?.pagination?.next ?? null;
-    }
-
-    return students;
-  }
-
-  /** Build a preview of what will be imported */
-  async buildPreview(): Promise<WondeSyncPreview> {
-    const [schoolRes, rawStudents] = await Promise.all([
-      this.getSchool(),
-      this.getAllStudents(),
-    ]);
-
-    const students = rawStudents
-      .map((s) => {
-        const yearGroup =
-          s.year_group?.data?.name ?? "Unknown";
-
-        const guardians = (s.contacts?.data ?? [])
-          .map((c) => {
-            const email = c.emails?.data?.find((e) => e.main)?.email
-              ?? c.emails?.data?.[0]?.email;
-            if (!email) return null;
-            const phone = c.phones?.data?.find((p) => p.main)?.phone
-              ?? c.phones?.data?.[0]?.phone
-              ?? null;
-            return {
-              email,
-              phone: phone ?? null,
-              relationship: c.relationship_to_student ?? "Parent",
-            };
-          })
-          .filter((g): g is NonNullable<typeof g> => g !== null);
-
-        return {
-          firstName: s.forename,
-          yearGroup,
-          guardians,
-        };
-      })
-      .filter((s) => s.yearGroup !== "Unknown");
-
-    const totalGuardians = new Set(
-      students.flatMap((s) => s.guardians.map((g) => g.email))
-    ).size;
-
-    return {
-      students,
-      totalStudents: students.length,
-      totalGuardians,
-      schoolName: schoolRes.data.name,
-    };
-  }
+  return { students, guardians, links };
 }
