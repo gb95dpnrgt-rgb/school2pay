@@ -1,8 +1,8 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { createClient as createServerClient } from "@/lib/supabase/server";
 import { createClient as createAdminClient } from "@supabase/supabase-js";
+import { sendVerificationEmail } from "@/lib/email";
 import type { Database } from "@/lib/supabase/types";
 
 function getAdminClient() {
@@ -13,16 +13,23 @@ function getAdminClient() {
   );
 }
 
+function generateToken(): string {
+  const bytes = new Uint8Array(32);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes).map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
 export async function signup(formData: FormData) {
-  const email = formData.get("email") as string;
+  const email = (formData.get("email") as string).toLowerCase().trim();
   const password = formData.get("password") as string;
 
   const admin = getAdminClient();
 
+  // Create user — not yet confirmed
   const { data: authData, error: authError } = await admin.auth.admin.createUser({
-    email: email.toLowerCase().trim(),
+    email,
     password,
-    email_confirm: true,
+    email_confirm: false,
   });
 
   if (authError) {
@@ -36,12 +43,26 @@ export async function signup(formData: FormData) {
     redirect(`/signup?error=${encodeURIComponent("Failed to create account — please try again.")}`);
   }
 
-  const supabase = await createServerClient();
-  const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+  // Generate and store verification token (expires in 24 hours)
+  const token = generateToken();
+  const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
 
-  if (signInError) {
-    redirect(`/signup?error=${encodeURIComponent("Account created but sign-in failed: " + signInError.message)}`);
+  const { error: tokenError } = await admin
+    .from("email_verifications" as keyof Database["public"]["Tables"])
+    .insert({ user_id: authData.user.id, token, expires_at: expiresAt } as never);
+
+  if (tokenError) {
+    console.error("Failed to store verification token:", tokenError);
+    redirect(`/signup?error=${encodeURIComponent("Failed to send verification email — please try again.")}`);
   }
 
-  redirect("/onboarding");
+  // Send verification email via Resend
+  try {
+    await sendVerificationEmail({ email, token });
+  } catch (e) {
+    console.error("Failed to send verification email:", e);
+    redirect(`/signup?error=${encodeURIComponent("Failed to send verification email — please try again.")}`);
+  }
+
+  redirect("/signup/verify");
 }

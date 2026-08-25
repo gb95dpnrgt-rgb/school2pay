@@ -3,7 +3,7 @@ import { login } from "./actions";
 export default function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string }>;
+  searchParams: Promise<{ error?: string; verified?: string }>;
 }) {
   return (
     <main className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
@@ -13,7 +13,7 @@ export default function LoginPage({
           <p className="mt-1 text-sm text-gray-500">Sign in to your school account</p>
         </div>
 
-        <ErrorMessage searchParams={searchParams} />
+        <StatusMessage searchParams={searchParams} />
 
         <form action={login} className="space-y-4">
           <div>
@@ -63,12 +63,19 @@ export default function LoginPage({
   );
 }
 
-async function ErrorMessage({
+async function StatusMessage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string }>;
+  searchParams: Promise<{ error?: string; verified?: string }>;
 }) {
   const params = await searchParams;
+  if (params.verified === "1") {
+    return (
+      <div className="rounded-lg bg-green-50 border border-green-200 px-4 py-3 text-sm text-green-700">
+        Email confirmed! Sign in below to continue.
+      </div>
+    );
+  }
   if (!params.error) return null;
   return (
     <div className="rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">

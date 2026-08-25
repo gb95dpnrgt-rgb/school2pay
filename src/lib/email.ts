@@ -296,6 +296,36 @@ export async function sendShopOrderConfirmation(data: ShopOrderConfirmationData)
   return result?.id ?? null;
 }
 
+export async function sendVerificationEmail(data: {
+  email: string;
+  token: string;
+}): Promise<void> {
+  const verifyUrl = `${APP_URL}/verify?token=${data.token}`;
+  await resend.emails.send({
+    from: FROM,
+    to: data.email,
+    subject: "Confirm your School2Pay account",
+    html: `
+      <div style="font-family:sans-serif;max-width:520px;margin:0 auto;background:#fff;border-radius:12px;border:1px solid #e5e7eb;overflow:hidden">
+        <div style="background:#2563eb;padding:24px;color:#fff">
+          <p style="margin:0;font-size:13px;opacity:0.8">School2Pay</p>
+          <h1 style="margin:4px 0 0;font-size:20px;font-weight:700">Confirm your email address</h1>
+        </div>
+        <div style="padding:24px;color:#374151">
+          <p>Thanks for signing up. Click the button below to confirm your email address and continue setting up your school.</p>
+          <div style="text-align:center;margin:24px 0">
+            <a href="${verifyUrl}" style="background:#2563eb;color:#fff;padding:14px 28px;border-radius:8px;font-weight:600;font-size:15px;text-decoration:none;display:inline-block">
+              Confirm email address
+            </a>
+          </div>
+          <p style="font-size:13px;color:#6b7280">Or copy this link into your browser:<br><span style="color:#2563eb;word-break:break-all">${verifyUrl}</span></p>
+          <p style="font-size:12px;color:#9ca3af;margin-top:24px">This link expires in 24 hours. If you didn't sign up, ignore this email.<br>School2Pay · school2pay.com</p>
+        </div>
+      </div>
+    `,
+  });
+}
+
 export async function sendClubWaitlistConfirmation(data: {
   email: string;
   clubName: string;
