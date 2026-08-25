@@ -5,7 +5,7 @@ import { stripe } from "@/lib/stripe";
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/supabase/types";
 import { postPaymentEntries, postRefundEntries } from "@/lib/ledger";
-import { sendPaymentConfirmation, sendClubEnrollmentConfirmation, sendShopOrderConfirmation, sendDinnerTopUpConfirmation } from "@/lib/email";
+import { sendPaymentConfirmation, sendClubEnrollmentConfirmation, sendShopOrderConfirmation, sendDinnerTopUpConfirmation, sendRefundConfirmation } from "@/lib/email";
 
 // Raw body required for Stripe signature verification
 export const dynamic = "force-dynamic";
@@ -700,5 +700,64 @@ async function handleChargeRefunded(
         updated_at: new Date().toISOString(),
       })
       .eq("id", assignment.id);
+  }
+
+  // Send refund confirmation email to the guardian
+  try {
+    const { data: fullTxn } = await db
+      .from("transactions")
+      .select("guardian_id, amount_pence")
+      .eq("id", txn.id)
+      .single();
+
+    if (fullTxn?.guardian_id) {
+      const { data: guardian } = await db
+        .from("guardians")
+        .select("email")
+        .eq("id", fullTxn.guardian_id)
+        .single();
+
+      // Get payment request title and school name via the first assignment
+      const firstLine = (txnLines ?? [])[0];
+      let requestTitle = "Payment";
+      let schoolName = "School2Pay";
+      if (firstLine?.assignment_id) {
+        const { data: assignmentDetails } = await db
+          .from("assignments")
+          .select("payment_request_id")
+          .eq("id", firstLine.assignment_id)
+          .single();
+
+        if (assignmentDetails?.payment_request_id) {
+          const { data: pr } = await db
+            .from("payment_requests")
+            .select("title, school_id")
+            .eq("id", assignmentDetails.payment_request_id)
+            .single();
+
+          if (pr) {
+            requestTitle = pr.title;
+            const { data: school } = await db
+              .from("schools")
+              .select("name")
+              .eq("id", pr.school_id)
+              .single();
+            if (school) schoolName = school.name;
+          }
+        }
+      }
+
+      if (guardian?.email) {
+        await sendRefundConfirmation({
+          email: guardian.email,
+          requestTitle,
+          schoolName,
+          amountPence: fullTxn.amount_pence,
+        });
+      }
+    }
+  } catch (emailErr) {
+    // Email failure must not cause the webhook to return 500 (Stripe would retry)
+    console.error("[webhook] refund email failed:", emailErr);
   }
 }

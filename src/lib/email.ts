@@ -296,6 +296,38 @@ export async function sendShopOrderConfirmation(data: ShopOrderConfirmationData)
   return result?.id ?? null;
 }
 
+export async function sendRefundConfirmation(data: {
+  email: string;
+  requestTitle: string;
+  schoolName: string;
+  amountPence: number;
+}): Promise<void> {
+  const amount = `£${(data.amountPence / 100).toFixed(2)}`;
+  await resend.emails.send({
+    from: FROM,
+    to: data.email,
+    subject: `Refund confirmed — ${data.requestTitle}`,
+    html: `
+      <div style="font-family:sans-serif;max-width:520px;margin:0 auto;background:#fff;border-radius:12px;border:1px solid #e5e7eb;overflow:hidden">
+        <div style="background:#6b7280;padding:24px;color:#fff">
+          <p style="margin:0;font-size:13px;opacity:0.8">${data.schoolName}</p>
+          <h1 style="margin:4px 0 0;font-size:20px;font-weight:700">Refund confirmed</h1>
+        </div>
+        <div style="padding:24px;color:#374151">
+          <p>Dear Parent/Guardian,</p>
+          <p>A refund of <strong>${amount}</strong> for <strong>${data.requestTitle}</strong> has been processed.</p>
+          <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:16px;margin:16px 0">
+            <p style="margin:0;font-size:13px;color:#6b7280">Refund amount</p>
+            <p style="margin:4px 0 0;font-size:20px;font-weight:700;color:#374151">${amount}</p>
+          </div>
+          <p style="font-size:13px;color:#6b7280">The refund will appear in your account within 5–10 business days depending on your bank.</p>
+          <p style="font-size:12px;color:#9ca3af;margin-top:24px">Questions? Contact ${data.schoolName} directly.<br>School2Pay · school2pay.com</p>
+        </div>
+      </div>
+    `,
+  });
+}
+
 export async function sendVerificationEmail(data: {
   email: string;
   token: string;
