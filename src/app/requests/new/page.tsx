@@ -47,6 +47,21 @@ export default async function NewRequestPage() {
     yearGroupCounts[yg] = (allStudents ?? []).filter((s) => s.year_group === yg).length;
   }
 
+  const classes = [
+    ...new Set(
+      (allStudents ?? [])
+        .map((s) => (s as unknown as { class_name: string | null }).class_name)
+        .filter((c): c is string => !!c)
+    ),
+  ].sort();
+
+  const classCounts: Record<string, number> = {};
+  for (const c of classes) {
+    classCounts[c] = (allStudents ?? []).filter(
+      (s) => (s as unknown as { class_name: string | null }).class_name === c
+    ).length;
+  }
+
   return (
     <main id="main-content" className="min-h-screen bg-gray-50">
       <nav aria-label="Main navigation" className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
@@ -99,6 +114,8 @@ export default async function NewRequestPage() {
             totalStudents={totalStudents}
             yearGroups={yearGroups}
             yearGroupCounts={yearGroupCounts}
+            classes={classes}
+            classCounts={classCounts}
             students={allStudents ?? []}
           />
 

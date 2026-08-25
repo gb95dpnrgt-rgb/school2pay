@@ -108,6 +108,7 @@ export async function saveImport(rows: ParsedRow[]): Promise<ImportResult> {
           school_id: schoolId,
           first_name: r.student_first_name,
           year_group: r.year_group,
+          class_name: r.class_name || null,
         }))
       )
       .select("id, first_name, year_group");

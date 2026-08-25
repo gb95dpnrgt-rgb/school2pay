@@ -28,6 +28,7 @@ export async function createPaymentRequest(formData: FormData) {
   const dueDate = formData.get("due_date") as string;
   const targetMode = formData.get("target_mode") as string;
   const targetValue = formData.get("target") as string;
+  const targetClass = formData.get("target_class") as string;
   const studentIds = formData.getAll("student_ids") as string[];
   const allowPartial = formData.get("allow_partial") === "on";
 
@@ -38,7 +39,7 @@ export async function createPaymentRequest(formData: FormData) {
     throw new Error("Please select at least one student");
   }
 
-  const yearGroups = targetValue === "all" || targetMode === "specific" ? null : [targetValue];
+  const yearGroups = (targetMode === "year" && targetValue) ? [targetValue] : null;
 
   const admin = getAdminClient();
 
@@ -63,18 +64,20 @@ export async function createPaymentRequest(formData: FormData) {
   if (targetMode === "specific") {
     studentIdList = studentIds;
   } else {
-    let studentsQuery = admin
-      .from("students")
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let studentsQuery = (admin.from("students") as any)
       .select("id")
       .eq("school_id", school.id);
 
-    if (yearGroups) {
+    if (targetMode === "year" && yearGroups) {
       studentsQuery = studentsQuery.in("year_group", yearGroups);
+    } else if (targetMode === "class" && targetClass) {
+      studentsQuery = studentsQuery.eq("class_name", targetClass);
     }
 
     const { data: students, error: studErr } = await studentsQuery;
     if (studErr) throw new Error(studErr.message);
-    studentIdList = (students ?? []).map((s) => s.id);
+    studentIdList = (students ?? []).map((s: { id: string }) => s.id);
   }
 
   const students = studentIdList.map((id) => ({ id }));

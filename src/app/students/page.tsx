@@ -12,6 +12,7 @@ export type StudentWithGuardians = {
   id: string;
   first_name: string;
   year_group: string;
+  class_name: string | null;
   guardian_student: GuardianLink[];
 };
 
@@ -32,6 +33,7 @@ export default async function StudentsPage() {
       id,
       first_name,
       year_group,
+      class_name,
       guardian_student (
         relationship,
         guardians ( id, email, phone )

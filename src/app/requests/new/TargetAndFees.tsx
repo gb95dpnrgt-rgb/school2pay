@@ -13,12 +13,15 @@ interface Props {
   totalStudents: number;
   yearGroups: string[];
   yearGroupCounts: Record<string, number>;
+  classes: string[];
+  classCounts: Record<string, number>;
   students: Student[];
 }
 
-export default function TargetAndFees({ totalStudents, yearGroups, yearGroupCounts, students }: Props) {
-  const [mode, setMode] = useState<"all" | "year" | "specific">("all");
+export default function TargetAndFees({ totalStudents, yearGroups, yearGroupCounts, classes, classCounts, students }: Props) {
+  const [mode, setMode] = useState<"all" | "year" | "class" | "specific">("all");
   const [selectedYear, setSelectedYear] = useState(yearGroups[0] ?? "");
+  const [selectedClass, setSelectedClass] = useState(classes[0] ?? "");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [search, setSearch] = useState("");
 
@@ -32,6 +35,7 @@ export default function TargetAndFees({ totalStudents, yearGroups, yearGroupCoun
   const studentCount =
     mode === "all" ? totalStudents :
     mode === "year" ? (yearGroupCounts[selectedYear] ?? 0) :
+    mode === "class" ? (classCounts[selectedClass] ?? 0) :
     selectedIds.size;
 
   function toggleStudent(id: string) {
@@ -55,8 +59,9 @@ export default function TargetAndFees({ totalStudents, yearGroups, yearGroupCoun
     <div className="space-y-4">
       {/* Hidden fields for the form */}
       <input type="hidden" name="target_mode" value={mode} />
-      {mode === "year" && <input type="hidden" name="target" value={selectedYear} />}
       {mode === "all" && <input type="hidden" name="target" value="all" />}
+      {mode === "year" && <input type="hidden" name="target" value={selectedYear} />}
+      {mode === "class" && <input type="hidden" name="target_class" value={selectedClass} />}
       {mode === "specific" &&
         [...selectedIds].map((id) => (
           <input key={id} type="hidden" name="student_ids" value={id} />
@@ -70,6 +75,7 @@ export default function TargetAndFees({ totalStudents, yearGroups, yearGroupCoun
           {[
             { value: "all", label: `Whole school (${totalStudents})` },
             { value: "year", label: "Year group" },
+            ...(classes.length > 0 ? [{ value: "class", label: "Class" }] : []),
             { value: "specific", label: "Specific students" },
           ].map((opt) => (
             <button
@@ -87,6 +93,24 @@ export default function TargetAndFees({ totalStudents, yearGroups, yearGroupCoun
           ))}
         </div>
       </div>
+
+      {/* Class picker */}
+      {mode === "class" && (
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Select class</label>
+          <select
+            value={selectedClass}
+            onChange={(e) => setSelectedClass(e.target.value)}
+            className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            {classes.map((c) => (
+              <option key={c} value={c}>
+                {c} ({classCounts[c] ?? 0} students)
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
 
       {/* Year group picker */}
       {mode === "year" && (

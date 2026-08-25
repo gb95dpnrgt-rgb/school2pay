@@ -9,7 +9,8 @@ export default function StudentListClient({ students }: { students: StudentWithG
   const filtered = query.trim()
     ? students.filter((s) =>
         s.first_name.toLowerCase().includes(query.toLowerCase()) ||
-        s.year_group.toLowerCase().includes(query.toLowerCase())
+        s.year_group.toLowerCase().includes(query.toLowerCase()) ||
+        (s.class_name ?? "").toLowerCase().includes(query.toLowerCase())
       )
     : students;
 
@@ -41,6 +42,7 @@ export default function StudentListClient({ students }: { students: StudentWithG
             <tr className="text-left text-gray-500 text-xs font-semibold uppercase tracking-wide">
               <th className="px-4 py-3">Name</th>
               <th className="px-4 py-3">Year</th>
+              <th className="px-4 py-3">Class</th>
               <th className="px-4 py-3">Parents / Guardians</th>
             </tr>
           </thead>
@@ -55,6 +57,7 @@ export default function StudentListClient({ students }: { students: StudentWithG
                 <tr key={student.id} className="border-b border-gray-100 last:border-0 hover:bg-gray-50">
                   <td className="px-4 py-3 font-medium text-gray-900">{student.first_name}</td>
                   <td className="px-4 py-3 text-gray-500">{student.year_group}</td>
+                  <td className="px-4 py-3 text-gray-500">{student.class_name ?? <span className="text-gray-300">—</span>}</td>
                   <td className="px-4 py-3">
                     {guardians.length === 0 ? (
                       <span className="text-gray-300 text-xs">None linked</span>

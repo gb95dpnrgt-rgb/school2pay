@@ -4,6 +4,7 @@ export interface ParsedRow {
   line: number;
   student_first_name: string;
   year_group: string;
+  class_name: string;
   parent_email: string;
   parent_phone: string;
   relationship: string;
@@ -41,8 +42,12 @@ const HEADER_ALIASES: Record<string, string> = {
   name: "student_first_name",
   yeargroup: "year_group",
   year: "year_group",
-  class: "year_group",
   form: "year_group",
+  classname: "class_name",
+  classgroupname: "class_name",
+  classgroup: "class_name",
+  tutor: "class_name",
+  tutorgroup: "class_name",
   parentemail: "parent_email",
   guardianemail: "parent_email",
   email: "parent_email",
@@ -157,6 +162,7 @@ export function parseCSV(raw: string): ParseResult {
 
     const firstName = col(cells, "student_first_name");
     const yearGroup = col(cells, "year_group");
+    const className = col(cells, "class_name");
     const email = col(cells, "parent_email").toLowerCase();
     const phone = col(cells, "parent_phone");
     const relationship = col(cells, "relationship") || "parent";
@@ -184,7 +190,7 @@ export function parseCSV(raw: string): ParseResult {
 
     if (seenStudentParent.has(studentParentKey)) {
       duplicates.push({
-        row: { line: lineNum, student_first_name: firstName, year_group: yearGroup, parent_email: email, parent_phone: phone, relationship },
+        row: { line: lineNum, student_first_name: firstName, year_group: yearGroup, class_name: className, parent_email: email, parent_phone: phone, relationship },
         reason: `Duplicate row: ${firstName} (${yearGroup}) with ${email} already appears earlier in this file`,
       });
       continue;
@@ -193,7 +199,7 @@ export function parseCSV(raw: string): ParseResult {
     seenStudentParent.add(studentParentKey);
     seenStudentKey.set(studentKey, lineNum);
 
-    valid.push({ line: lineNum, student_first_name: firstName, year_group: yearGroup, parent_email: email, parent_phone: phone, relationship });
+    valid.push({ line: lineNum, student_first_name: firstName, year_group: yearGroup, class_name: className, parent_email: email, parent_phone: phone, relationship });
   }
 
   return { valid, duplicates, errors };
