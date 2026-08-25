@@ -1,15 +1,9 @@
-student_first_name,year_group,parent_email,parent_phone,relationship
-Emma,Year 1,emma.parent@example.com,07700900001,Parent
-Jack,Year 1,jack.parent@example.com,07700900002,Parent
-Sophie,Year 2,sophie.parent@example.com,07700900003,Mother
-Oliver,Year 2,oliver.parent@example.com,07700900004,Father
-Amelia,Year 3,amelia.parent@example.com,07700900005,Parent
-Harry,Year 3,harry.parent@example.com,,Parent
-Isla,Year 4,isla.parent@example.com,07700900006,Parent
-Charlie,Year 4,charlie.parent@example.com,07700900007,Parent
-Grace,Year 5,grace.parent@example.com,07700900008,Mother
-Noah,Year 5,noah.parent@example.com,,Parent
-Alice,Year 5,alice.mum@example.com,07700900009,Mother
-Alice,Year 5,alice.dad@example.com,07700900010,Father
-Liam,Year 6,liam.parent@example.com,07700900011,Parent
-Mia,Year 6,mia.parent@example.com,07700900012,Parent
+student_first_name,year_group,class_name,parent_email,parent_phone,relationship
+Emma,Year 3,3A,emma.parent@gmail.com,07700900001,parent
+Liam,Year 3,3A,liam.parent@gmail.com,07700900002,parent
+Sophia,Year 4,4B,sophia.parent@gmail.com,07700900003,parent
+Noah,Year 4,4B,noah.parent@gmail.com,07700900004,parent
+Olivia,Year 5,5A,olivia.parent@gmail.com,07700900005,parent
+James,Year 5,5B,james.parent@gmail.com,07700900006,parent
+Isla,Year 6,6A,isla.parent@gmail.com,07700900007,parent
+Harry,Year 6,6B,harry.parent@gmail.com,07700900008,parent

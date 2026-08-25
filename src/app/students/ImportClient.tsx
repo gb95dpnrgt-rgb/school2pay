@@ -149,7 +149,7 @@ export default function ImportClient() {
       <input ref={fileRef} type="file" accept=".csv,text/csv" onChange={onFileChange} className="hidden" />
       <p className="text-sm font-medium text-gray-600">Drop a CSV here or click to browse</p>
       <p className="mt-1 text-xs text-gray-400">
-        Expected columns: student_first_name, year_group, parent_email, parent_phone, relationship
+        Columns: student_first_name, year_group, class_name (optional), parent_email, parent_phone, relationship
       </p>
       <a
         href="/sample-students.csv"
@@ -204,6 +204,7 @@ function RowTable({ rows }: { rows: ParsedRow[] }) {
           <tr className="text-left text-gray-500 border-b border-green-100">
             <th className="py-1 pr-3 font-medium">Student</th>
             <th className="py-1 pr-3 font-medium">Year</th>
+            <th className="py-1 pr-3 font-medium">Class</th>
             <th className="py-1 pr-3 font-medium">Parent email</th>
             <th className="py-1 pr-3 font-medium">Phone</th>
             <th className="py-1 font-medium">Relationship</th>
@@ -214,6 +215,7 @@ function RowTable({ rows }: { rows: ParsedRow[] }) {
             <tr key={`${r.line}`} className="border-b border-green-50 last:border-0">
               <td className="py-1 pr-3">{r.student_first_name}</td>
               <td className="py-1 pr-3">{r.year_group}</td>
+              <td className="py-1 pr-3">{r.class_name || "—"}</td>
               <td className="py-1 pr-3">{r.parent_email}</td>
               <td className="py-1 pr-3">{r.parent_phone || "—"}</td>
               <td className="py-1">{r.relationship}</td>
