@@ -35,7 +35,7 @@ export default async function NewRequestPage() {
 
   const { data: allStudents } = await admin
     .from("students")
-    .select("id, first_name, year_group")
+    .select("id, first_name, year_group, class_name")
     .eq("school_id", school.id)
     .order("year_group")
     .order("first_name");
