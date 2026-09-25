@@ -3,6 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import { verifyMagicToken } from "@/lib/magic-link";
 import type { Database } from "@/lib/supabase/types";
 import PayWithConsent from "./PayWithConsent";
+import InstalmentSchedule from "./InstalmentSchedule";
 import type { ConsentFormData } from "./ConsentForm";
 
 function getAdmin() {
@@ -79,6 +80,12 @@ export default async function PayPage({ params }: { params: Promise<{ token: str
     students: { first_name: a.students.first_name, year_group: a.students.year_group },
   }));
 
+  // Fetch instalment schedule (if any)
+  const { data: instalments } = await (admin.from("instalment_schedules") as any)
+    .select("id, label, amount_pence, due_date, sort_order")
+    .eq("payment_request_id", payload.paymentRequestId)
+    .order("sort_order");
+
   // Fetch consent form for this payment request (if any)
   const { data: consentFormRow } = await (admin.from("consent_forms") as any)
     .select("id, type, requires_consent_before_payment, consent_fields(id, key, label, field_type, required, sort_order)")
@@ -134,6 +141,8 @@ export default async function PayPage({ params }: { params: Promise<{ token: str
           {req.description && <p className="text-sm text-gray-500">{req.description}</p>}
           <p className="text-xs text-gray-400">Due {dueFormatted}</p>
         </div>
+
+        <InstalmentSchedule instalments={instalments ?? []} />
 
         {myAssignments.length === 0 ? (
           <div className="rounded-xl border border-gray-200 bg-white p-8 text-center text-sm text-gray-400">

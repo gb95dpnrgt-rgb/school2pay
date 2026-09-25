@@ -341,6 +341,73 @@ export async function recordOfflinePayment(
   return { ledgerBalanced: result.balanced };
 }
 
+/** Cancel a payment request and bulk-refund all succeeded payments. Returns counts. */
+export async function cancelAndRefundAll(
+  requestId: string
+): Promise<{ cancelled: number; refunded: number; failed: number }> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Unauthorised");
+
+  const { data: req } = await supabase
+    .from("payment_requests")
+    .select("id, status")
+    .eq("id", requestId)
+    .single();
+  if (!req) throw new Error("Request not found or access denied");
+
+  const admin = getAdmin();
+
+  // Find all succeeded transactions linked to assignments for this request
+  const { data: lines } = await admin
+    .from("transaction_lines")
+    .select(`
+      id, amount_pence,
+      transactions!inner(id, stripe_payment_intent, status),
+      assignments!inner(payment_request_id)
+    `)
+    .eq("assignments.payment_request_id", requestId) as {
+      data: Array<{
+        id: string;
+        amount_pence: number;
+        transactions: { id: string; stripe_payment_intent: string; status: string };
+        assignments: { payment_request_id: string };
+      }> | null;
+    };
+
+  // Deduplicate by payment intent (one transaction may cover multiple children)
+  const uniqueIntents = new Map<string, string>(); // intent → txn id
+  for (const line of lines ?? []) {
+    const txn = line.transactions;
+    if (txn.status === "succeeded" && txn.stripe_payment_intent) {
+      uniqueIntents.set(txn.stripe_payment_intent, txn.id);
+    }
+  }
+
+  let refunded = 0;
+  let failed = 0;
+  for (const [intent] of uniqueIntents) {
+    try {
+      await stripe.refunds.create({ payment_intent: intent });
+      refunded++;
+    } catch (e) {
+      console.error("[bulk-refund] Failed to refund", intent, e);
+      failed++;
+    }
+  }
+
+  // Mark request as cancelled
+  await supabase
+    .from("payment_requests")
+    .update({ status: "cancelled" as any })
+    .eq("id", requestId);
+
+  revalidatePath(`/requests/${requestId}`);
+  revalidatePath("/requests");
+
+  return { cancelled: 1, refunded, failed };
+}
+
 /** Apply a remission (full or percentage) to a single assignment. No reason is stored. */
 export async function applyRemission(
   assignmentId: string,

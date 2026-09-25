@@ -13,6 +13,7 @@ import RefundButton from "./RefundButton";
 import CloseRequestButton from "./CloseRequestButton";
 import ConsentResponseModal from "./ConsentResponseModal";
 import SaveTemplateButton from "../SaveTemplateButton";
+import CancelAndRefundButton from "./CancelAndRefundButton";
 
 const PAGE_SIZE = 20;
 
@@ -257,6 +258,7 @@ export default async function RequestDetailPage({
           <a href="/dashboard" className="text-sm text-gray-500 hover:text-gray-800">Dashboard</a>
           <a href="/requests" className="text-sm text-gray-500 hover:text-gray-800">Requests</a>
           <a href="/students" className="text-sm text-gray-500 hover:text-gray-800">Students</a>
+          <a href="/reports/export" className="text-sm text-gray-500 hover:text-gray-800">Reports</a>
         </div>
         <form action={logout}>
           <button type="submit" className="text-sm text-gray-500 hover:text-gray-700">Sign out</button>
@@ -286,6 +288,9 @@ export default async function RequestDetailPage({
                 amountPence={req.amount_pence}
               />
               <CloseRequestButton requestId={req.id} currentStatus={req.status} />
+              {req.status === "open" && paidCount > 0 && (
+                <CancelAndRefundButton requestId={req.id} paidCount={paidCount} />
+              )}
             </div>
           </div>
         </div>

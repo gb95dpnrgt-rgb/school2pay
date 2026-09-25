@@ -133,6 +133,38 @@ export async function createPaymentRequest(formData: FormData) {
     }
   }
 
+  // ── Instalment schedule (optional) ────────────────────────────────────────
+  const instalmentCount = parseInt(formData.get("instalment_count") as string, 10);
+  if (instalmentCount > 0) {
+    const instalmentRows: Array<{
+      payment_request_id: string;
+      label: string;
+      amount_pence: number;
+      due_date: string;
+      sort_order: number;
+    }> = [];
+    for (let i = 0; i < instalmentCount; i++) {
+      const label = (formData.get(`instalment_label_${i}`) as string)?.trim();
+      const amountPounds = formData.get(`instalment_amount_${i}`) as string;
+      const date = formData.get(`instalment_date_${i}`) as string;
+      if (label && amountPounds && date) {
+        const pence = Math.round(parseFloat(amountPounds) * 100);
+        if (pence > 0) {
+          instalmentRows.push({
+            payment_request_id: req.id,
+            label,
+            amount_pence: pence,
+            due_date: date,
+            sort_order: i,
+          });
+        }
+      }
+    }
+    if (instalmentRows.length > 0) {
+      await (admin.from("instalment_schedules") as any).insert(instalmentRows);
+    }
+  }
+
   // Fire-and-forget: send emails to guardians (do not block redirect on email delivery)
   notifyGuardians(req.id).catch((err) => console.error("Email notification failed:", err));
 

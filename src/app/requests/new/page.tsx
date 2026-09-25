@@ -8,6 +8,7 @@ import TemplateLoader from "./TemplateLoader";
 import ConsentToggle from "./ConsentToggle";
 import RequestTypeSelector from "./RequestTypeSelector";
 import ComplianceFields from "./ComplianceFields";
+import InstalmentBuilder from "./InstalmentBuilder";
 
 function getAdmin() {
   return adminClient(
@@ -73,6 +74,7 @@ export default async function NewRequestPage() {
           <a href="/dashboard" className="text-sm text-gray-500 hover:text-gray-800">Dashboard</a>
           <a href="/requests" className="text-sm text-gray-500 hover:text-gray-800">Requests</a>
           <a href="/students" className="text-sm text-gray-500 hover:text-gray-800">Students</a>
+          <a href="/reports/export" className="text-sm text-gray-500 hover:text-gray-800">Reports</a>
         </div>
         <form action={logout}>
           <button type="submit" className="text-sm text-gray-500 hover:text-gray-700">Sign out</button>
@@ -143,6 +145,8 @@ export default async function NewRequestPage() {
           </div>
 
           <ComplianceFields />
+
+          <InstalmentBuilder />
 
           <ConsentToggle />
 
