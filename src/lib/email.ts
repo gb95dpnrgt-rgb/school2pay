@@ -478,3 +478,40 @@ export async function sendClubEnrollmentConfirmation(data: {
     `,
   });
 }
+
+export async function sendWelcomeEmail({
+  email,
+  schoolName,
+  trustName,
+}: {
+  email: string;
+  schoolName: string;
+  trustName: string;
+}) {
+  const APP_URL_LOCAL = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+  await resend.emails.send({
+    from: FROM,
+    to: email,
+    subject: `You're live on School2Pay — ${schoolName}`,
+    html: `
+      <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:520px;margin:0 auto;background:#fff;border-radius:12px;border:1px solid #e5e7eb;overflow:hidden">
+        <div style="background:#1d4ed8;padding:24px;color:#fff">
+          <h1 style="margin:0;font-size:20px;font-weight:700">You're ready to collect payments</h1>
+          <p style="margin:4px 0 0;font-size:13px;opacity:0.8">${schoolName} · ${trustName}</p>
+        </div>
+        <div style="padding:24px;color:#374151;line-height:1.6">
+          <p>Your Stripe account has been verified. You can now create payment requests and start collecting from parents.</p>
+          <ul style="padding-left:20px;color:#6b7280;font-size:14px">
+            <li>50p flat fee per transaction — no surcharges to parents</li>
+            <li>Weekly payouts to your trust bank account every Friday</li>
+            <li>Receipts emailed automatically after each payment</li>
+          </ul>
+          <a href="${APP_URL_LOCAL}/requests/new" style="display:inline-block;background:#1d4ed8;color:#fff;padding:12px 24px;border-radius:8px;font-weight:600;font-size:15px;text-decoration:none;margin-top:8px">
+            Create your first payment request →
+          </a>
+          <p style="font-size:12px;color:#9ca3af;margin-top:24px">Questions? Reply to this email. School2Pay · school2pay.com</p>
+        </div>
+      </div>
+    `,
+  });
+}

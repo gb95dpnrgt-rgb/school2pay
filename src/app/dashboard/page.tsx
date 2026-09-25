@@ -163,7 +163,7 @@ async function getStripeStatus(stripeAccountId: string | null | undefined): Prom
 export default async function DashboardPage({
   searchParams,
 }: {
-  searchParams: Promise<{ school?: string }>;
+  searchParams: Promise<{ school?: string; welcome?: string }>;
 }) {
   const supabase = await createClient();
   const params = await searchParams;
@@ -219,6 +219,20 @@ export default async function DashboardPage({
       </nav>
 
       <div id="main-content" className="max-w-4xl mx-auto px-6 py-10 space-y-6">
+        {/* Welcome banner — shown once after Stripe onboarding completes */}
+        {params.welcome === "1" && (
+          <div className="rounded-xl border border-green-200 bg-green-50 px-5 py-4 flex gap-3">
+            <span className="text-green-500 text-xl leading-none">✓</span>
+            <div>
+              <p className="font-semibold text-green-900">You&apos;re live!</p>
+              <p className="text-sm text-green-700 mt-0.5">
+                Your Stripe account is verified. Create your first payment request and start collecting from parents.{" "}
+                <a href="/requests/new" className="underline font-medium">Create a request →</a>
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* School header */}
         <div className="flex items-start justify-between gap-4">
           <div>
