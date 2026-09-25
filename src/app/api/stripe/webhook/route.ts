@@ -458,7 +458,14 @@ async function handlePaymentSucceeded(
   }
 
   if (children.length > 0 && requestTitle) {
-    await sendPaymentConfirmation({ email: guardian.email, requestTitle, schoolName, children })
+    await sendPaymentConfirmation({
+      email: guardian.email,
+      requestTitle,
+      schoolName,
+      children,
+      transactionId: txn.id,
+      paidAt: new Date(),
+    })
       .catch((err) => console.error("[webhook] confirmation email failed:", err));
   } else {
     console.warn(`[webhook] skipped confirmation: children=${children.length} title="${requestTitle}"`);

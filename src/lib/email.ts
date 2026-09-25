@@ -106,6 +106,8 @@ export interface PaymentConfirmationData {
   email: string;
   requestTitle: string;
   schoolName: string;
+  transactionId?: string;
+  paidAt?: Date;
   children: Array<{
     firstName: string;
     yearGroup: string;
@@ -165,11 +167,34 @@ export async function sendPaymentConfirmation(data: PaymentConfirmationData): Pr
 </body>
 </html>`;
 
+  // Generate PDF receipt if we have transaction details
+  let attachments: Array<{ filename: string; content: Buffer }> | undefined;
+  if (data.transactionId && data.paidAt) {
+    try {
+      const { generateReceiptPdf } = await import("./receipt-pdf");
+      const totalPenceForPdf = data.children.reduce((s, c) => s + c.amountPence, 0);
+      const pdfBuffer = await generateReceiptPdf({
+        schoolName: data.schoolName,
+        requestTitle: data.requestTitle,
+        studentName: data.children.map((c) => c.firstName).join(", "),
+        guardianEmail: data.email,
+        amountPence: totalPenceForPdf,
+        transactionId: data.transactionId,
+        paidAt: data.paidAt,
+      });
+      attachments = [{ filename: "receipt.pdf", content: pdfBuffer }];
+    } catch (pdfErr) {
+      console.error("[email] PDF generation failed:", pdfErr);
+      // Don't block the email — send without attachment
+    }
+  }
+
   const { data: result, error } = await resend.emails.send({
     from: FROM,
     to: data.email,
     subject: `Payment confirmed: ${data.requestTitle} — ${data.schoolName}`,
     html,
+    attachments,
   });
 
   if (error) {
