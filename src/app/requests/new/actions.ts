@@ -31,6 +31,10 @@ export async function createPaymentRequest(formData: FormData) {
   const targetClass = formData.get("target_class") as string;
   const studentIds = formData.getAll("student_ids") as string[];
   const allowPartial = formData.get("allow_partial") === "on";
+  const requestType = (formData.get("request_type") as string) || "voluntary";
+  const policyUrl = (formData.get("policy_url") as string)?.trim() || null;
+  const viabilityPounds = formData.get("viability_threshold_pence_pounds") as string;
+  const viabilityThresholdPence = viabilityPounds ? Math.round(parseFloat(viabilityPounds) * 100) : null;
 
   if (!title || !amountPence || amountPence <= 0 || !dueDate) {
     throw new Error("Missing required fields");
@@ -53,6 +57,9 @@ export async function createPaymentRequest(formData: FormData) {
       due_date: dueDate,
       year_groups: yearGroups,
       allow_partial: allowPartial,
+      request_type: requestType,
+      policy_url: policyUrl,
+      viability_threshold_pence: viabilityThresholdPence,
     })
     .select("id")
     .single();

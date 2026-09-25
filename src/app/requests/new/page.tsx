@@ -6,6 +6,8 @@ import { createPaymentRequest } from "./actions";
 import TargetAndFees from "./TargetAndFees";
 import TemplateLoader from "./TemplateLoader";
 import ConsentToggle from "./ConsentToggle";
+import RequestTypeSelector from "./RequestTypeSelector";
+import ComplianceFields from "./ComplianceFields";
 
 function getAdmin() {
   return adminClient(
@@ -86,7 +88,11 @@ export default async function NewRequestPage() {
 
         <TemplateLoader />
 
+
         <form action={createPaymentRequest} className="space-y-6 bg-white rounded-xl border border-gray-200 p-6">
+
+          <RequestTypeSelector />
+
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
             <input
@@ -135,6 +141,8 @@ export default async function NewRequestPage() {
               </p>
             </div>
           </div>
+
+          <ComplianceFields />
 
           <ConsentToggle />
 

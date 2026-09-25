@@ -340,3 +340,57 @@ export async function recordOfflinePayment(
   revalidatePath(`/requests/${requestId}`);
   return { ledgerBalanced: result.balanced };
 }
+
+/** Apply a remission (full or percentage) to a single assignment. No reason is stored. */
+export async function applyRemission(
+  assignmentId: string,
+  requestId: string,
+  remissionType: "full" | "percentage",
+  percentageValue: number | null
+): Promise<void> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Unauthorised");
+
+  const { data: req } = await supabase
+    .from("payment_requests")
+    .select("id")
+    .eq("id", requestId)
+    .single();
+  if (!req) throw new Error("Request not found or access denied");
+
+  const admin = getAdmin();
+
+  const { data: assignment } = await admin
+    .from("assignments")
+    .select("amount_due_pence, status")
+    .eq("id", assignmentId)
+    .single();
+  if (!assignment) throw new Error("Assignment not found");
+  if (assignment.status === "paid") throw new Error("Cannot apply remission to a paid assignment");
+
+  let remissionAmountPence: number;
+  if (remissionType === "full") {
+    remissionAmountPence = assignment.amount_due_pence;
+  } else {
+    if (!percentageValue || percentageValue <= 0 || percentageValue > 100) {
+      throw new Error("Invalid percentage");
+    }
+    remissionAmountPence = Math.round(assignment.amount_due_pence * (percentageValue / 100));
+  }
+
+  const newAmountDue = assignment.amount_due_pence - remissionAmountPence;
+
+  await (admin as any)
+    .from("assignments")
+    .update({
+      amount_due_pence: newAmountDue,
+      remission_type: remissionType,
+      remission_amount_pence: remissionAmountPence,
+      status: newAmountDue === 0 ? "waived" : assignment.status,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", assignmentId);
+
+  revalidatePath(`/requests/${requestId}`);
+}

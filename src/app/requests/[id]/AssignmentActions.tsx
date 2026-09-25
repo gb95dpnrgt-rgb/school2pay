@@ -1,9 +1,9 @@
 "use client";
 
 import { useState, useTransition, useRef } from "react";
-import { waivedAssignment, recordOfflinePayment } from "./actions";
+import { waivedAssignment, recordOfflinePayment, applyRemission } from "./actions";
 
-type Modal = "none" | "waive" | "offline";
+type Modal = "none" | "waive" | "offline" | "remission";
 
 export default function AssignmentActions({
   assignmentId,
@@ -30,6 +30,10 @@ export default function AssignmentActions({
   );
   const [offlineNote, setOfflineNote] = useState("");
 
+  // Remission state
+  const [remissionType, setRemissionType] = useState<"full" | "percentage">("full");
+  const [remissionPct, setRemissionPct] = useState("100");
+
   const noteRef = useRef<HTMLTextAreaElement>(null);
 
   function open(type: Modal) {
@@ -54,6 +58,23 @@ export default function AssignmentActions({
       try {
         await waivedAssignment(assignmentId, requestId, waiveNote || null);
         setDone("Assignment waived.");
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Something went wrong");
+      }
+    });
+  }
+
+  function handleRemission() {
+    setError(null);
+    const pct = remissionType === "percentage" ? parseFloat(remissionPct) : null;
+    startTransition(async () => {
+      try {
+        await applyRemission(assignmentId, requestId, remissionType, pct);
+        setDone(
+          remissionType === "full"
+            ? "Full remission applied — assignment set to waived."
+            : `${remissionPct}% remission applied.`
+        );
       } catch (e) {
         setError(e instanceof Error ? e.message : "Something went wrong");
       }
@@ -94,12 +115,18 @@ export default function AssignmentActions({
   return (
     <>
       {/* Action buttons (shown in table cell) */}
-      <div className="flex items-center gap-1">
+      <div className="flex items-center gap-1 flex-wrap">
         <button
           onClick={() => open("offline")}
           className="rounded px-2 py-1 text-xs font-medium text-blue-700 hover:bg-blue-50 border border-blue-200"
         >
           Cash/cheque
+        </button>
+        <button
+          onClick={() => open("remission")}
+          className="rounded px-2 py-1 text-xs font-medium text-purple-700 hover:bg-purple-50 border border-purple-200"
+        >
+          Remission
         </button>
         <button
           onClick={() => open("waive")}
@@ -118,6 +145,82 @@ export default function AssignmentActions({
           }}
         >
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm mx-4 p-6 space-y-4">
+            {/* ── Remission modal ─────────────────────────── */}
+            {modal === "remission" && (
+              <>
+                <h2 className="text-base font-semibold text-gray-900">
+                  Apply remission — {studentName}
+                </h2>
+                <p className="text-sm text-gray-500">
+                  Reduces the amount due for this pupil. No reason is stored — keeping to data minimisation rules.
+                </p>
+                <div className="space-y-3">
+                  <div className="flex gap-3">
+                    <label className={`flex-1 flex items-center gap-2 rounded-lg border p-3 cursor-pointer ${remissionType === "full" ? "border-purple-500 bg-purple-50" : "border-gray-200"}`}>
+                      <input
+                        type="radio"
+                        name="remission_type"
+                        value="full"
+                        checked={remissionType === "full"}
+                        onChange={() => setRemissionType("full")}
+                        className="text-purple-600"
+                      />
+                      <div>
+                        <p className="text-sm font-medium text-gray-900">Full remission</p>
+                        <p className="text-xs text-gray-500">Waives the entire amount</p>
+                      </div>
+                    </label>
+                    <label className={`flex-1 flex items-center gap-2 rounded-lg border p-3 cursor-pointer ${remissionType === "percentage" ? "border-purple-500 bg-purple-50" : "border-gray-200"}`}>
+                      <input
+                        type="radio"
+                        name="remission_type"
+                        value="percentage"
+                        checked={remissionType === "percentage"}
+                        onChange={() => setRemissionType("percentage")}
+                        className="text-purple-600"
+                      />
+                      <div>
+                        <p className="text-sm font-medium text-gray-900">Partial</p>
+                        <p className="text-xs text-gray-500">Reduce by a percentage</p>
+                      </div>
+                    </label>
+                  </div>
+                  {remissionType === "percentage" && (
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="number"
+                        min="1"
+                        max="99"
+                        value={remissionPct}
+                        onChange={(e) => setRemissionPct(e.target.value)}
+                        className="w-20 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-300"
+                      />
+                      <span className="text-sm text-gray-600">% reduction</span>
+                      <span className="text-sm text-gray-400">
+                        = £{((amountDuePence * (parseFloat(remissionPct) / 100)) / 100).toFixed(2)} off
+                      </span>
+                    </div>
+                  )}
+                </div>
+                {done && <p className="text-sm font-medium text-green-700">{done}</p>}
+                {error && <p className="text-sm text-red-600">{error}</p>}
+                <div className="flex justify-end gap-2 pt-1">
+                  <button onClick={close} disabled={isPending} className="rounded-lg px-4 py-2 text-sm text-gray-500 hover:bg-gray-100 disabled:opacity-50">
+                    {done ? "Close" : "Cancel"}
+                  </button>
+                  {!done && (
+                    <button
+                      onClick={handleRemission}
+                      disabled={isPending}
+                      className="rounded-lg bg-purple-600 px-4 py-2 text-sm font-medium text-white hover:bg-purple-700 disabled:opacity-50"
+                    >
+                      {isPending ? "Applying…" : "Apply remission"}
+                    </button>
+                  )}
+                </div>
+              </>
+            )}
+
             {/* ── Waive modal ─────────────────────────────── */}
             {modal === "waive" && (
               <>
