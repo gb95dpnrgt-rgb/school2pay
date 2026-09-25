@@ -3,7 +3,7 @@ import { login } from "./actions";
 export default function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string; verified?: string }>;
+  searchParams: Promise<{ error?: string; verified?: string; reset?: string }>;
 }) {
   return (
     <main className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
@@ -53,6 +53,12 @@ export default function LoginPage({
         </form>
 
         <p className="text-center text-sm text-gray-500">
+          <a href="/forgot-password" className="text-blue-600 hover:underline">
+            Forgot your password?
+          </a>
+        </p>
+
+        <p className="text-center text-sm text-gray-500">
           No account?{" "}
           <a href="/signup" className="text-blue-600 hover:underline font-medium">
             Create one
@@ -66,13 +72,20 @@ export default function LoginPage({
 async function StatusMessage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string; verified?: string }>;
+  searchParams: Promise<{ error?: string; verified?: string; reset?: string }>;
 }) {
   const params = await searchParams;
   if (params.verified === "1") {
     return (
       <div className="rounded-lg bg-green-50 border border-green-200 px-4 py-3 text-sm text-green-700">
         Email confirmed! Sign in below to continue.
+      </div>
+    );
+  }
+  if (params.reset === "1") {
+    return (
+      <div className="rounded-lg bg-green-50 border border-green-200 px-4 py-3 text-sm text-green-700">
+        Password updated! Sign in with your new password.
       </div>
     );
   }
