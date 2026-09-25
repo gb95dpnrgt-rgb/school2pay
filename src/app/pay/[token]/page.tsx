@@ -38,7 +38,7 @@ export default async function PayPage({ params }: { params: Promise<{ token: str
   const [guardianResult, reqResult] = await Promise.all([
     admin.from("guardians").select("id, email").eq("id", payload.guardianId).single(),
     (admin.from("payment_requests") as any)
-      .select("id, title, description, due_date, schools(name), allow_partial, request_type")
+      .select("id, title, description, due_date, schools(name), allow_partial, request_type, place_cap")
       .eq("id", payload.paymentRequestId)
       .single(),
   ]);
@@ -48,7 +48,8 @@ export default async function PayPage({ params }: { params: Promise<{ token: str
 
   const req = reqResult.data as {
     id: string; title: string; description: string | null; due_date: string;
-    schools: { name: string } | null; allow_partial: boolean; request_type: string | null;
+    schools: { name: string } | null; allow_partial: boolean;
+    request_type: string | null; place_cap: number | null;
   } | null;
   if (!req) notFound();
 
@@ -79,6 +80,40 @@ export default async function PayPage({ params }: { params: Promise<{ token: str
     status: a.status,
     students: { first_name: a.students.first_name, year_group: a.students.year_group },
   }));
+
+  // Is this a shared assignment? (total paid > guardian's paid means another guardian has contributed)
+  // Computed after guardianPaidByAssignment is built below.
+
+  // Fetch this guardian's payments toward each assignment (for split-pay display)
+  const assignmentIds = myAssignments.map((a) => a.id);
+  const guardianPaidByAssignment = new Map<string, number>();
+  if (assignmentIds.length > 0) {
+    const { data: myLines } = await admin
+      .from("transaction_lines")
+      .select(`amount_pence, assignment_id, transactions!inner(guardian_id, status)`)
+      .in("assignment_id", assignmentIds)
+      .eq("transactions.guardian_id" as any, guardian.id)
+      .eq("transactions.status" as any, "succeeded") as {
+        data: Array<{ amount_pence: number; assignment_id: string }> | null;
+      };
+    for (const line of myLines ?? []) {
+      guardianPaidByAssignment.set(
+        line.assignment_id,
+        (guardianPaidByAssignment.get(line.assignment_id) ?? 0) + line.amount_pence
+      );
+    }
+  }
+
+  // Fetch place cap usage (if applicable)
+  let placesTaken = 0;
+  if (req.place_cap != null) {
+    const { count } = await admin
+      .from("assignments")
+      .select("id", { count: "exact", head: true })
+      .eq("payment_request_id", payload.paymentRequestId)
+      .in("status", ["paid", "partial"]) as { count: number | null };
+    placesTaken = count ?? 0;
+  }
 
   // Fetch instalment schedule (if any)
   const { data: instalments } = await (admin.from("instalment_schedules") as any)
@@ -152,14 +187,55 @@ export default async function PayPage({ params }: { params: Promise<{ token: str
           </div>
         )}
 
+        {/* Place cap banner */}
+        {req.place_cap != null && (() => {
+          const placesLeft = req.place_cap! - placesTaken;
+          const isFull = placesLeft <= 0;
+          return (
+            <div className={`rounded-xl border px-4 py-3 text-sm ${isFull ? "border-red-200 bg-red-50 text-red-800" : placesLeft <= 3 ? "border-amber-200 bg-amber-50 text-amber-800" : "border-gray-200 bg-gray-50 text-gray-700"}`}>
+              {isFull ? (
+                <>
+                  <p className="font-semibold">This trip is now full</p>
+                  <p className="text-xs mt-0.5">All {req.place_cap} places have been taken. Contact the school if you believe this is an error.</p>
+                </>
+              ) : (
+                <p>{placesLeft} place{placesLeft !== 1 ? "s" : ""} remaining out of {req.place_cap}</p>
+              )}
+            </div>
+          );
+        })()}
+
         <InstalmentSchedule instalments={instalments ?? []} />
 
-        {myAssignments.length === 0 ? (
+        {req.place_cap != null && placesTaken >= req.place_cap ? (
+          <div className="rounded-xl border border-red-200 bg-red-50 p-6 text-center text-sm text-red-800 space-y-2">
+            <p className="font-semibold text-base">This trip is full</p>
+            <p>Payment is no longer available. Please contact the school to be added to a waitlist.</p>
+          </div>
+        ) : myAssignments.length === 0 ? (
           <div className="rounded-xl border border-gray-200 bg-white p-8 text-center text-sm text-gray-400">
             No outstanding payments found for your children.
           </div>
         ) : (
-          <PayWithConsent
+          <>
+            {/* Split-pay summary: show if any assignment has been partially paid by another guardian */}
+            {myAssignments.some((a) => a.amount_paid_pence > 0 && (guardianPaidByAssignment.get(a.id) ?? 0) < a.amount_paid_pence) && (
+              <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 space-y-2">
+                <p className="text-sm font-semibold text-blue-900">Shared payment</p>
+                {myAssignments.filter((a) => a.amount_paid_pence > 0).map((a) => {
+                  const myPaid = guardianPaidByAssignment.get(a.id) ?? 0;
+                  const otherPaid = a.amount_paid_pence - myPaid;
+                  if (otherPaid <= 0) return null;
+                  return (
+                    <div key={a.id} className="text-xs text-blue-800 flex justify-between">
+                      <span>{a.students.first_name} — your contribution</span>
+                      <span className="font-mono">£{(myPaid / 100).toFixed(2)} of £{(a.amount_due_pence / 100).toFixed(2)}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+            <PayWithConsent
             assignments={myAssignments}
             guardianId={guardian.id}
             paymentRequestId={req.id}
@@ -168,6 +244,7 @@ export default async function PayPage({ params }: { params: Promise<{ token: str
             consentForms={consentForms}
             requiresConsentBeforePayment={requiresConsentBeforePayment}
           />
+          </>
         )}
 
         <p className="text-center text-xs text-gray-400">

@@ -37,6 +37,8 @@ export async function createPaymentRequest(formData: FormData) {
   const viabilityThresholdPence = viabilityPounds ? Math.round(parseFloat(viabilityPounds) * 100) : null;
   const totalCostPounds = formData.get("total_cost_pounds") as string;
   const totalCostPence = totalCostPounds ? Math.round(parseFloat(totalCostPounds) * 100) : null;
+  const placeCapStr = formData.get("place_cap") as string;
+  const placeCap = placeCapStr && parseInt(placeCapStr, 10) > 0 ? parseInt(placeCapStr, 10) : null;
 
   if (!title || !amountPence || amountPence <= 0 || !dueDate) {
     throw new Error("Missing required fields");
@@ -63,6 +65,7 @@ export async function createPaymentRequest(formData: FormData) {
       policy_url: policyUrl,
       viability_threshold_pence: viabilityThresholdPence,
       total_cost_pence: totalCostPence,
+      place_cap: placeCap,
     })
     .select("id")
     .single();

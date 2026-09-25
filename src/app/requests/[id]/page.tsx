@@ -55,7 +55,7 @@ export default async function RequestDetailPage({
   // Fetch request (RLS ensures it belongs to this admin's school)
   const { data: req } = await supabase
     .from("payment_requests")
-    .select("id, title, description, amount_pence, due_date, year_groups, status, created_at, request_type")
+    .select("id, title, description, amount_pence, due_date, year_groups, status, created_at, request_type, total_cost_pence")
     .eq("id", id)
     .single();
 
@@ -327,6 +327,45 @@ export default async function RequestDetailPage({
             </div>
           </div>
         </div>
+
+        {/* ── Trip P&L ────────────────────────────────────────────────────── */}
+        {(req as any).total_cost_pence != null && (() => {
+          const supplierCostPence = (req as any).total_cost_pence as number;
+          const waivedCount = Number(summary?.waived_count ?? 0);
+          const remissionsPence = waivedCount * req.amount_pence;
+          const surplus = totalCollected - supplierCostPence;
+          const hasDeficit = surplus < 0;
+          return (
+            <div className={`rounded-xl border p-5 space-y-3 ${hasDeficit ? "border-red-200 bg-red-50" : "border-green-200 bg-green-50"}`}>
+              <p className="text-sm font-semibold text-gray-900">Trip P&amp;L</p>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
+                <div>
+                  <p className="text-xs text-gray-500">Income (gross)</p>
+                  <p className="text-base font-bold text-gray-900 font-mono">£{(totalCollected / 100).toFixed(2)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">Supplier cost</p>
+                  <p className="text-base font-bold text-gray-900 font-mono">£{(supplierCostPence / 100).toFixed(2)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">Remissions (est.)</p>
+                  <p className="text-base font-bold text-gray-900 font-mono">£{(remissionsPence / 100).toFixed(2)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">{hasDeficit ? "Deficit" : "Surplus"}</p>
+                  <p className={`text-base font-bold font-mono ${hasDeficit ? "text-red-600" : "text-green-700"}`}>
+                    {hasDeficit ? "−" : "+"}£{(Math.abs(surplus) / 100).toFixed(2)}
+                  </p>
+                </div>
+              </div>
+              {hasDeficit && (
+                <p className="text-xs text-red-700">
+                  This trip is running at a deficit. Consider whether the shortfall will be absorbed by the school or whether outstanding payments could close the gap.
+                </p>
+              )}
+            </div>
+          );
+        })()}
 
         {/* ── Consent summary ─────────────────────────────────────────────── */}
         {consentFormRow && (() => {
