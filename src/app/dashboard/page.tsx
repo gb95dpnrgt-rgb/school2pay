@@ -206,7 +206,7 @@ export default async function DashboardPage({
           <span className="text-gray-300">|</span>
           <a href="/requests" className="text-sm text-gray-500 hover:text-gray-800">Requests</a>
           <a href="/students" className="text-sm text-gray-500 hover:text-gray-800">Students</a>
-          <a href="/reports/export" className="text-sm text-gray-500 hover:text-gray-800">Reports</a>
+          <a href="/reports" className="text-sm text-gray-500 hover:text-gray-800">Reports</a>
         </div>
         <form action={logout}>
           <button

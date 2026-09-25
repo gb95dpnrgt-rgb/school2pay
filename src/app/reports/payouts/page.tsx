@@ -56,8 +56,10 @@ export default async function PayoutsPage() {
           <span aria-hidden="true" className="text-gray-300">|</span>
           <a href="/dashboard" className="text-sm text-gray-500 hover:text-gray-800">Dashboard</a>
           <a href="/requests" className="text-sm text-gray-500 hover:text-gray-800">Requests</a>
+          <a href="/reports" className="text-sm text-gray-500 hover:text-gray-800">Reports</a>
+          <a href="/reports/outstanding" className="text-sm text-gray-500 hover:text-gray-800">Outstanding</a>
           <a href="/reports/payouts" className="text-sm font-medium text-gray-900">Payouts</a>
-          <a href="/reports/summary" className="text-sm text-gray-500 hover:text-gray-800">Summary</a>
+          <a href="/reports/export" className="text-sm text-gray-500 hover:text-gray-800">Export</a>
         </div>
         <form action={logout}>
           <button type="submit" className="text-sm text-gray-500 hover:text-gray-700">Sign out</button>

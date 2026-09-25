@@ -1,5 +1,5 @@
 import { Resend } from "resend";
-import { signMagicToken, type MagicLinkPayload } from "./magic-link";
+import { signMagicToken, signHistoryToken, type MagicLinkPayload } from "./magic-link";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -104,6 +104,7 @@ export async function sendPaymentNotification(data: GuardianEmailData): Promise<
 
 export interface PaymentConfirmationData {
   email: string;
+  guardianId?: string;
   requestTitle: string;
   schoolName: string;
   transactionId?: string;
@@ -118,6 +119,17 @@ export interface PaymentConfirmationData {
 export async function sendPaymentConfirmation(data: PaymentConfirmationData): Promise<string | null> {
   const totalPence = data.children.reduce((s, c) => s + c.amountPence, 0);
   const totalStr = `£${(totalPence / 100).toFixed(2)}`;
+
+  // Generate history link if we have a guardianId
+  let historyLink = "";
+  if (data.guardianId) {
+    try {
+      const historyToken = await signHistoryToken(data.guardianId);
+      historyLink = `${APP_URL}/pay/history/${encodeURIComponent(historyToken)}`;
+    } catch {
+      // non-fatal
+    }
+  }
 
   const childrenHtml = data.children
     .map(
@@ -158,6 +170,9 @@ export async function sendPaymentConfirmation(data: PaymentConfirmationData): Pr
           </tr>
         </tfoot>
       </table>
+      ${historyLink ? `<a href="${historyLink}" style="display:block;text-align:center;padding:10px 24px;border-radius:8px;border:1px solid #e5e7eb;color:#1d4ed8;font-size:14px;text-decoration:none;margin-bottom:16px">
+        View all your payments →
+      </a>` : ""}
       <p style="font-size:12px;color:#9ca3af;margin:0">
         Please keep this email as your receipt.<br>
         Questions? Contact ${data.schoolName} directly.

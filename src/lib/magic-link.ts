@@ -29,3 +29,23 @@ export async function verifyMagicToken(token: string): Promise<MagicLinkPayload>
   }
   return payload;
 }
+
+export interface HistoryTokenPayload extends JWTPayload {
+  guardianId: string;
+}
+
+// Long-lived (30 day) guardian-scoped token for the payment history page.
+// Does NOT grant access to any specific payment request or Stripe checkout.
+export async function signHistoryToken(guardianId: string): Promise<string> {
+  return new SignJWT({ guardianId })
+    .setProtectedHeader({ alg: ALG })
+    .setIssuedAt()
+    .setExpirationTime("30d")
+    .sign(getSecret());
+}
+
+export async function verifyHistoryToken(token: string): Promise<HistoryTokenPayload> {
+  const { payload } = await jwtVerify<HistoryTokenPayload>(token, getSecret(), { algorithms: [ALG] });
+  if (!payload.guardianId) throw new Error("Invalid history token");
+  return payload;
+}

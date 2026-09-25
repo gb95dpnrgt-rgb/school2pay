@@ -460,6 +460,7 @@ async function handlePaymentSucceeded(
   if (children.length > 0 && requestTitle) {
     await sendPaymentConfirmation({
       email: guardian.email,
+      guardianId: guardian.id,
       requestTitle,
       schoolName,
       children,
