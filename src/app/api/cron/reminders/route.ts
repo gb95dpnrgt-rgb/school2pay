@@ -8,7 +8,7 @@ import type { Database } from "@/lib/supabase/types";
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
 
 // Days before due date on which we send auto-reminders
-const REMINDER_DAYS = [7, 1];
+const REMINDER_DAYS = [7, 3, 1];
 
 // Don't email a guardian more than once per 48 hours for the same request
 const COOLDOWN_HOURS = 48;

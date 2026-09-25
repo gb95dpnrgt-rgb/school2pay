@@ -9,6 +9,7 @@ import ConsentToggle from "./ConsentToggle";
 import RequestTypeSelector from "./RequestTypeSelector";
 import ComplianceFields from "./ComplianceFields";
 import InstalmentBuilder from "./InstalmentBuilder";
+import CapChecker from "./CapChecker";
 
 function getAdmin() {
   return adminClient(
@@ -145,6 +146,8 @@ export default async function NewRequestPage() {
           </div>
 
           <ComplianceFields />
+
+          <CapChecker />
 
           <InstalmentBuilder />
 

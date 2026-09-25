@@ -38,7 +38,7 @@ export default async function PayPage({ params }: { params: Promise<{ token: str
   const [guardianResult, reqResult] = await Promise.all([
     admin.from("guardians").select("id, email").eq("id", payload.guardianId).single(),
     (admin.from("payment_requests") as any)
-      .select("id, title, description, due_date, schools(name), allow_partial")
+      .select("id, title, description, due_date, schools(name), allow_partial, request_type")
       .eq("id", payload.paymentRequestId)
       .single(),
   ]);
@@ -48,7 +48,7 @@ export default async function PayPage({ params }: { params: Promise<{ token: str
 
   const req = reqResult.data as {
     id: string; title: string; description: string | null; due_date: string;
-    schools: { name: string } | null; allow_partial: boolean;
+    schools: { name: string } | null; allow_partial: boolean; request_type: string | null;
   } | null;
   if (!req) notFound();
 
@@ -141,6 +141,16 @@ export default async function PayPage({ params }: { params: Promise<{ token: str
           {req.description && <p className="text-sm text-gray-500">{req.description}</p>}
           <p className="text-xs text-gray-400">Due {dueFormatted}</p>
         </div>
+
+        {req.request_type === "voluntary" && (
+          <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800 space-y-1">
+            <p className="font-semibold">This is a voluntary contribution</p>
+            <p className="text-xs text-blue-700">
+              Payment is entirely optional. No child will be excluded from this activity if you choose not to contribute.
+              Your decision will not be shared with trip leaders or other parents.
+            </p>
+          </div>
+        )}
 
         <InstalmentSchedule instalments={instalments ?? []} />
 

@@ -55,7 +55,7 @@ export default async function RequestDetailPage({
   // Fetch request (RLS ensures it belongs to this admin's school)
   const { data: req } = await supabase
     .from("payment_requests")
-    .select("id, title, description, amount_pence, due_date, year_groups, status, created_at")
+    .select("id, title, description, amount_pence, due_date, year_groups, status, created_at, request_type")
     .eq("id", id)
     .single();
 
@@ -348,6 +348,20 @@ export default async function RequestDetailPage({
           );
         })()}
 
+        {/* ── Voluntary contribution notice ───────────────────────────────── */}
+        {(req as any).request_type === "voluntary" && (
+          <div className="rounded-xl border border-blue-200 bg-blue-50 px-5 py-4 flex gap-3">
+            <span className="text-blue-500 text-lg leading-none">ℹ</span>
+            <div className="text-sm">
+              <p className="font-semibold text-blue-900">Voluntary contribution — anonymised view</p>
+              <p className="text-blue-700 mt-0.5">
+                Non-paying pupils are shown as <strong>Anonymous</strong> to protect families&apos; identities (Education Act 1996 s.457).
+                Paid pupils are named normally. Guardian emails remain visible to you as the admin.
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* ── Filters + chase action ───────────────────────────────────────── */}
         <div className="flex flex-wrap items-center gap-3 justify-between">
           <Suspense>
@@ -419,7 +433,9 @@ export default async function RequestDetailPage({
                     return (
                       <tr key={asgn.id} className="border-b border-gray-100 last:border-0 hover:bg-gray-50/50">
                         <td className="px-4 py-3 font-medium text-gray-900">
-                          {student.first_name}
+                          {(req as any).request_type === "voluntary" && (asgn.status === "unpaid" || asgn.status === "partial")
+                            ? <span className="text-gray-400 italic">Anonymous</span>
+                            : student.first_name}
                         </td>
                         <td className="px-4 py-3 text-gray-500">{student.year_group}</td>
                         <td className="px-4 py-3 text-right font-mono text-gray-700">

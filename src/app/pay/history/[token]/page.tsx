@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
 import { verifyHistoryToken } from "@/lib/magic-link";
 import type { Database } from "@/lib/supabase/types";
+import ChildcareStatementDownload from "./ChildcareStatementDownload";
 
 function getAdmin() {
   return createClient<Database>(
@@ -168,6 +169,8 @@ export default async function GuardianHistoryPage({
             })}
           </div>
         )}
+
+        <ChildcareStatementDownload token={token} />
 
         <p className="text-center text-xs text-gray-400">
           Receipts are emailed to you automatically after each payment.
