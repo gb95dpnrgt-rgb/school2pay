@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { notFound } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
 import { verifyMagicToken } from "@/lib/magic-link";
