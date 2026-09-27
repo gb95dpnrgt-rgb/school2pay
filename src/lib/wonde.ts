@@ -94,3 +94,121 @@ export function wondeYearGroup(student: WondeStudent): string {
   const code = student.year?.code ?? student.year?.name ?? "";
   return code || "Unknown";
 }
+
+export interface SyncCounts {
+  students: number;
+  guardians: number;
+  links: number;
+}
+
+/**
+ * Syncs all students and guardian contacts from Wonde into Supabase for a given school.
+ * Idempotent — safe to call repeatedly (upserts by wonde_id).
+ */
+export async function syncSchoolFromWonde(
+  wondeToken: string,
+  schoolId: string
+): Promise<SyncCounts> {
+  // Import admin client lazily to avoid bundling server-only deps in client builds
+  const { createClient } = await import("@supabase/supabase-js");
+  const admin = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } }
+  );
+
+  // Fetch wonde_school_id for this school
+  const { data: school } = await (admin as any)
+    .from("schools")
+    .select("wonde_school_id")
+    .eq("id", schoolId)
+    .single() as { data: { wonde_school_id: string | null } | null };
+
+  if (!school?.wonde_school_id) throw new Error("School has no wonde_school_id");
+
+  const wondeStudents = await fetchWondeStudents(school.wonde_school_id, wondeToken);
+
+  let studentsCount = 0;
+  let guardiansCount = 0;
+  let linksCount = 0;
+
+  for (const ws of wondeStudents) {
+    const yearGroup = wondeYearGroup(ws);
+
+    const { data: existing } = await (admin as any)
+      .from("students")
+      .select("id")
+      .eq("wonde_id", ws.id)
+      .eq("school_id", schoolId)
+      .maybeSingle() as { data: { id: string } | null };
+
+    let studentId: string;
+    if (existing) {
+      await (admin as any)
+        .from("students")
+        .update({ first_name: ws.forename, year_group: yearGroup })
+        .eq("id", existing.id);
+      studentId = existing.id;
+    } else {
+      const { data: newStudent } = await (admin as any)
+        .from("students")
+        .insert({ school_id: schoolId, first_name: ws.forename, year_group: yearGroup, wonde_id: ws.id })
+        .select("id")
+        .single() as { data: { id: string } | null };
+      if (!newStudent) continue;
+      studentId = newStudent.id;
+      studentsCount++;
+    }
+
+    for (const contact of ws.contacts?.data ?? []) {
+      const email = contact.emails?.data?.[0]?.address ?? null;
+      const phone = contact.phones?.data?.find((p) => p.type === "mobile")?.phone
+        ?? contact.phones?.data?.[0]?.phone
+        ?? null;
+      if (!email) continue;
+
+      let guardianId: string;
+      const { data: existingG } = await (admin as any)
+        .from("guardians")
+        .select("id")
+        .eq("wonde_id", contact.id)
+        .maybeSingle() as { data: { id: string } | null };
+
+      if (existingG) {
+        await (admin as any).from("guardians").update({ email, phone }).eq("id", existingG.id);
+        guardianId = existingG.id;
+      } else {
+        const { data: byEmail } = await (admin as any)
+          .from("guardians").select("id").eq("email", email).maybeSingle() as { data: { id: string } | null };
+        if (byEmail) {
+          await (admin as any).from("guardians").update({ wonde_id: contact.id, phone: phone ?? undefined }).eq("id", byEmail.id);
+          guardianId = byEmail.id;
+        } else {
+          const { data: newG } = await (admin as any)
+            .from("guardians")
+            .insert({ email, phone, wonde_id: contact.id })
+            .select("id")
+            .single() as { data: { id: string } | null };
+          if (!newG) continue;
+          guardianId = newG.id;
+          guardiansCount++;
+        }
+      }
+
+      await (admin as any)
+        .from("guardian_student")
+        .upsert(
+          { guardian_id: guardianId, student_id: studentId, relationship: contact.relationship_to_student ?? "parent" },
+          { onConflict: "guardian_id,student_id", ignoreDuplicates: true }
+        );
+      linksCount++;
+    }
+  }
+
+  await (admin as any)
+    .from("schools")
+    .update({ wonde_synced_at: new Date().toISOString() })
+    .eq("id", schoolId);
+
+  return { students: studentsCount, guardians: guardiansCount, links: linksCount };
+}
