@@ -104,6 +104,10 @@ export default async function OutstandingPage() {
           <a href="/requests" className="text-sm text-gray-500 hover:text-gray-800">Requests</a>
           <a href="/reports" className="text-sm text-gray-500 hover:text-gray-800">Reports</a>
           <a href="/reports/outstanding" className="text-sm font-medium text-gray-900">Outstanding</a>
+          <a href="/reports/payouts" className="text-sm text-gray-500 hover:text-gray-800">Payouts</a>
+          <a href="/reports/export" className="text-sm text-gray-500 hover:text-gray-800">Export</a>
+          <a href="/reports/governor" className="text-sm text-gray-500 hover:text-gray-800">Governor</a>
+          <a href="/reports/audit" className="text-sm text-gray-500 hover:text-gray-800">Audit</a>
         </div>
         <form action={logout}>
           <button type="submit" className="text-sm text-gray-500 hover:text-gray-700">Sign out</button>
