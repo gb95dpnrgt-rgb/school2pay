@@ -6,7 +6,7 @@ import {
   grossUpToNet,
   feeBreakdown,
   formatPence,
-  APPLICATION_FEE_PENCE,
+  calculateApplicationFee,
   STRIPE_FIXED_PENCE,
   STRIPE_PERCENT,
 } from "@/lib/fees";
@@ -92,8 +92,8 @@ export default function FeeCalculator({ studentCount }: Props) {
             <span>−{formatPence(Math.ceil(breakdown.chargePence * STRIPE_PERCENT) + STRIPE_FIXED_PENCE)}</span>
           </div>
           <div className="flex justify-between text-gray-500">
-            <span>School2Pay fee (flat)</span>
-            <span>−{formatPence(APPLICATION_FEE_PENCE)}</span>
+            <span>School2Pay fee (tiered)</span>
+            <span>−{formatPence(calculateApplicationFee(breakdown.chargePence))}</span>
           </div>
           <div className="flex justify-between border-t border-blue-200 pt-2 font-semibold">
             <span className="text-gray-700">~Your school receives (net)</span>
@@ -103,7 +103,7 @@ export default function FeeCalculator({ studentCount }: Props) {
           </div>
           <div className="flex justify-between text-xs text-gray-400 pt-0.5">
             <span>Fees per payment</span>
-            <span>{formatPence(breakdown.stripeFee + APPLICATION_FEE_PENCE)} total</span>
+            <span>{formatPence(breakdown.stripeFee + calculateApplicationFee(breakdown.chargePence))} total</span>
           </div>
 
           {studentCount > 0 && (

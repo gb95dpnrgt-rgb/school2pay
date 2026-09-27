@@ -1,4 +1,4 @@
-import { APPLICATION_FEE_PENCE, STRIPE_PERCENT, STRIPE_FIXED_PENCE, feeBreakdown, formatPence, grossUpToNet } from "@/lib/fees";
+import { calculateApplicationFee, STRIPE_PERCENT, STRIPE_FIXED_PENCE, feeBreakdown, formatPence, grossUpToNet } from "@/lib/fees";
 
 // Example figures derived from lib/fees so they stay in sync if constants change
 const EXAMPLE_CHARGE = 2500; // £25.00 parent pays
@@ -53,8 +53,8 @@ export default function FeesPage() {
                   </td>
                 </tr>
                 <tr className="border-b border-gray-100">
-                  <td className="px-4 py-3 text-gray-700">School2Pay fee (flat)</td>
-                  <td className="px-4 py-3 text-right font-mono text-red-600">−{formatPence(APPLICATION_FEE_PENCE)}</td>
+                  <td className="px-4 py-3 text-gray-700">School2Pay fee (tiered)</td>
+                  <td className="px-4 py-3 text-right font-mono text-red-600">−{formatPence(calculateApplicationFee(EXAMPLE_CHARGE))}</td>
                 </tr>
                 <tr className="bg-gray-50">
                   <td className="px-4 py-3 font-semibold text-gray-900">Lands in your school's bank (net)</td>

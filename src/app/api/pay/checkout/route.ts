@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { stripe } from "@/lib/stripe";
 import { verifyMagicToken } from "@/lib/magic-link";
-import { APPLICATION_FEE_PENCE } from "@/lib/fees";
+import { calculateApplicationFee } from "@/lib/fees";
 import type { Database } from "@/lib/supabase/types";
 
 function getAdmin() {
@@ -188,7 +188,7 @@ export async function POST(req: NextRequest) {
   sessionParams.payment_intent_data = {
     metadata: { transaction_id: txn.id },
     ...(stripeAccountId
-      ? { application_fee_amount: APPLICATION_FEE_PENCE, transfer_data: { destination: stripeAccountId } }
+      ? { application_fee_amount: calculateApplicationFee(totalPence), transfer_data: { destination: stripeAccountId } }
       : {}),
   };
 
