@@ -256,6 +256,7 @@ export default async function ReportsPage() {
           <a href="/reports/export" className="text-sm text-gray-500 hover:text-gray-800">Export</a>
           <a href="/reports/governor" className="text-sm text-gray-500 hover:text-gray-800">Governor</a>
           <a href="/reports/audit" className="text-sm text-gray-500 hover:text-gray-800">Audit</a>
+          <a href="/settings" className="text-sm text-gray-500 hover:text-gray-800">Settings</a>
         </div>
         <form action={logout}>
           <button type="submit" className="text-sm text-gray-500 hover:text-gray-700">Sign out</button>

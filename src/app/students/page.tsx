@@ -53,7 +53,10 @@ export default async function StudentsPage() {
           <span className="text-lg font-bold text-gray-900">School2Pay</span>
           <span aria-hidden="true" className="text-gray-300">|</span>
           <a href="/dashboard" className="text-sm text-gray-500 hover:text-gray-800">Dashboard</a>
+          <a href="/requests" className="text-sm text-gray-500 hover:text-gray-800">Requests</a>
           <a href="/students" className="text-sm font-medium text-gray-900">Students</a>
+          <a href="/reports" className="text-sm text-gray-500 hover:text-gray-800">Reports</a>
+          <a href="/settings" className="text-sm text-gray-500 hover:text-gray-800">Settings</a>
         </div>
         <form action={logout}>
           <button type="submit" className="text-sm text-gray-500 hover:text-gray-700">Sign out</button>
