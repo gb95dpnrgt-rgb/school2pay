@@ -40,7 +40,7 @@ export default async function PayPage({ params }: { params: Promise<{ token: str
   const [guardianResult, reqResult] = await Promise.all([
     admin.from("guardians").select("id, email").eq("id", payload.guardianId).single(),
     (admin.from("payment_requests") as any)
-      .select("id, title, description, due_date, schools(name), allow_partial, request_type, place_cap")
+      .select("id, title, description, due_date, status, schools(name), allow_partial, request_type, place_cap")
       .eq("id", payload.paymentRequestId)
       .single(),
   ]);
@@ -51,9 +51,23 @@ export default async function PayPage({ params }: { params: Promise<{ token: str
   const req = reqResult.data as {
     id: string; title: string; description: string | null; due_date: string;
     schools: { name: string } | null; allow_partial: boolean;
-    request_type: string | null; place_cap: number | null;
+    request_type: string | null; place_cap: number | null; status: string;
   } | null;
   if (!req) notFound();
+
+  if (req.status === "closed") {
+    return (
+      <main className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
+        <div className="w-full max-w-md bg-white rounded-xl shadow p-8 space-y-4 text-center">
+          <div className="text-4xl">🔒</div>
+          <h1 className="text-xl font-bold text-gray-900">Payment closed</h1>
+          <p className="text-sm text-gray-500">
+            This payment request is no longer accepting payments. Please contact the school if you have any questions.
+          </p>
+        </div>
+      </main>
+    );
+  }
 
   // Fetch student IDs belonging to this guardian
   const { data: gsRows } = await admin
