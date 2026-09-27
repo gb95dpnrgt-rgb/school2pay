@@ -1,121 +1,96 @@
+// Wonde MIS integration client
+// Docs: https://docs.wonde.com/docs/api/
+
 const WONDE_BASE = "https://api.wonde.com/v1.0";
 
 export interface WondeStudent {
-  id: string;
+  id: string;           // Wonde student ID
   forename: string;
-  year: { data?: { name: string } };
-  classes?: { data: { name: string }[] };
-  contacts?: {
-    data: {
-      email?: { address: string };
-      telephone?: { number: string };
-      relationship_to_student?: string;
-      parental_responsibility: boolean;
-    }[];
-  };
+  mis_id: string;
+  year?: { code?: string; name?: string } | null;
+  contacts?: { data: WondeContact[] };
 }
 
-async function wondeGet(path: string, schoolToken: string) {
-  const res = await fetch(`${WONDE_BASE}${path}`, {
-    headers: { Authorization: `Bearer ${schoolToken}` },
+export interface WondeContact {
+  id: string;
+  forename: string;
+  relationship_to_student: string;
+  emails?: { data: Array<{ address: string }> };
+  phones?: { data: Array<{ phone: string; type: string }> };
+}
+
+export interface WondeSchool {
+  id: string;
+  name: string;
+  urn: string;
+  la_code?: string;
+}
+
+// Fetch all students for a school (handles pagination automatically)
+export async function fetchWondeStudents(
+  wondeSchoolId: string,
+  token: string
+): Promise<WondeStudent[]> {
+  const students: WondeStudent[] = [];
+  let url: string | null =
+    `${WONDE_BASE}/schools/${wondeSchoolId}/students?include=contacts,year&per_page=200`;
+
+  while (url) {
+    const res = await fetch(url, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(`Wonde API error ${res.status}: ${text}`);
+    }
+    const json: { data: WondeStudent[]; meta?: { pagination?: { next?: string | null } } } =
+      await res.json();
+    students.push(...(json.data ?? []));
+    url = json.meta?.pagination?.next ?? null;
+  }
+
+  return students;
+}
+
+// Exchange OAuth code for a per-school token
+export async function exchangeWondeCode(code: string): Promise<{
+  access_token: string;
+  school_id: string;
+}> {
+  const res = await fetch("https://api.wonde.com/oauth/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      grant_type: "authorization_code",
+      client_id: process.env.WONDE_CLIENT_ID,
+      client_secret: process.env.WONDE_CLIENT_SECRET,
+      redirect_uri: `${process.env.APP_URL ?? process.env.NEXT_PUBLIC_APP_URL}/api/wonde/callback`,
+      code,
+    }),
   });
-  if (!res.ok) throw new Error(`Wonde API error: ${res.status} ${await res.text()}`);
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Wonde token exchange failed ${res.status}: ${text}`);
+  }
   return res.json();
 }
 
-export async function syncSchoolFromWonde(
-  schoolToken: string,
-  schoolId: string
-): Promise<{ students: number; guardians: number; links: number }> {
-  const { createClient } = await import("@supabase/supabase-js");
-  const db = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    { auth: { autoRefreshToken: false, persistSession: false } }
-  );
-
-  let page = 1;
-  let hasMore = true;
-  let totalStudents = 0;
-  let totalGuardians = 0;
-  let totalLinks = 0;
-
-  while (hasMore) {
-    const { data, meta } = await wondeGet(
-      `/students?include=contacts,classes,year&per_page=200&page=${page}`,
-      schoolToken
-    );
-
-    const counts = await upsertBatch(db, data as WondeStudent[], schoolId);
-    totalStudents += counts.students;
-    totalGuardians += counts.guardians;
-    totalLinks += counts.links;
-
-    hasMore = !!meta?.pagination?.next;
-    page++;
-  }
-
-  return { students: totalStudents, guardians: totalGuardians, links: totalLinks };
+// Build the OAuth authorisation URL to redirect the school admin to
+export function wondeAuthoriseUrl(state: string): string {
+  const base = process.env.APP_URL ?? process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+  const params = new URLSearchParams({
+    client_id: process.env.WONDE_CLIENT_ID ?? "",
+    redirect_uri: `${base}/api/wonde/callback`,
+    response_type: "code",
+    state,
+    // Request read access to students and contacts
+    scope: "read:students read:contacts read:classes",
+  });
+  return `https://edu.wonde.com/oauth/authorize?${params.toString()}`;
 }
 
-async function upsertBatch(
-  db: ReturnType<typeof import("@supabase/supabase-js").createClient>,
-  wondeStudents: WondeStudent[],
-  schoolId: string
-) {
-  let students = 0;
-  let guardians = 0;
-  let links = 0;
-
-  for (const ws of wondeStudents) {
-    const { data: student } = await (db as any)
-      .from("students")
-      .upsert(
-        {
-          school_id: schoolId,
-          first_name: ws.forename,
-          year_group: ws.year?.data?.name ?? null,
-          class_name: ws.classes?.data?.[0]?.name ?? null,
-          wonde_id: ws.id,
-        },
-        { onConflict: "wonde_id" }
-      )
-      .select("id")
-      .single();
-
-    if (!student) continue;
-    students++;
-
-    for (const contact of ws.contacts?.data ?? []) {
-      if (!contact.email?.address) continue;
-      if (!contact.parental_responsibility) continue;
-
-      const email = contact.email.address.toLowerCase().trim();
-      const phone = contact.telephone?.number ?? null;
-
-      const { data: guardian } = await db
-        .from("guardians")
-        .upsert({ email, phone }, { onConflict: "email" })
-        .select("id")
-        .single();
-
-      if (!guardian) continue;
-      guardians++;
-
-      const { error: linkErr } = await db
-        .from("guardian_student")
-        .upsert(
-          {
-            guardian_id: guardian.id,
-            student_id: student.id,
-            relationship: contact.relationship_to_student ?? "parent",
-          },
-          { onConflict: "guardian_id,student_id" }
-        );
-
-      if (!linkErr) links++;
-    }
-  }
-
-  return { students, guardians, links };
+// Map a Wonde year code to a display string
+export function wondeYearGroup(student: WondeStudent): string {
+  const code = student.year?.code ?? student.year?.name ?? "";
+  return code || "Unknown";
 }
