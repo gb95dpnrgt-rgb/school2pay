@@ -55,23 +55,25 @@ export default async function PayPage({ params }: { params: Promise<{ token: str
   } | null;
   if (!req) notFound();
 
-  // Fetch guardian's assignments
+  // Fetch student IDs belonging to this guardian
+  const { data: gsRows } = await admin
+    .from("guardian_student")
+    .select("student_id")
+    .eq("guardian_id", guardian.id);
+  const myStudentIds = (gsRows ?? []).map((r) => r.student_id);
+
+  // Fetch assignments for this payment request scoped to this guardian's students
   const { data: assignments } = await admin
     .from("assignments")
     .select(`
       id, amount_due_pence, amount_paid_pence, status,
-      students!inner(first_name, year_group,
-        guardian_student!inner(guardian_id)
-      )
+      students!inner(first_name, year_group)
     `)
     .eq("payment_request_id", payload.paymentRequestId)
-    .eq("students.guardian_student.guardian_id", guardian.id) as {
+    .in("student_id", myStudentIds.length > 0 ? myStudentIds : ["00000000-0000-0000-0000-000000000000"]) as {
       data: Array<{
         id: string; amount_due_pence: number; amount_paid_pence: number; status: string;
-        students: {
-          first_name: string; year_group: string;
-          guardian_student: Array<{ guardian_id: string }>;
-        };
+        students: { first_name: string; year_group: string };
       }> | null;
     };
 
