@@ -4,6 +4,8 @@ import { createClient as createAdminClient } from "@supabase/supabase-js";
 import { fetchWondeStudents, wondeYearGroup } from "@/lib/wonde";
 import type { Database } from "@/lib/supabase/types";
 
+export const maxDuration = 60; // seconds — requires Vercel Pro; on hobby this is capped at 10s
+
 function getAdmin() {
   return createAdminClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
