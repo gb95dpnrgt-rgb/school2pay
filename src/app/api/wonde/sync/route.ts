@@ -99,7 +99,9 @@ export async function POST(req: Request) {
           .eq("wonde_id", contact.id)
           .maybeSingle() as { data: { id: string } | null };
 
-        const firstName = contact.forename ?? null;
+        // Wonde sandbox omits forename — derive from email prefix as fallback
+        const rawFirst = contact.forename ?? email?.split("@")[0]?.split(".")[0] ?? null;
+        const firstName = rawFirst ? rawFirst.charAt(0).toUpperCase() + rawFirst.slice(1) : null;
 
         if (existingGuardian) {
           await (admin as any).from("guardians").update({ email, phone, first_name: firstName }).eq("id", existingGuardian.id);
