@@ -99,20 +99,22 @@ export async function POST(req: Request) {
           .eq("wonde_id", contact.id)
           .maybeSingle() as { data: { id: string } | null };
 
+        const firstName = contact.forename ?? null;
+
         if (existingGuardian) {
-          await (admin as any).from("guardians").update({ email, phone }).eq("id", existingGuardian.id);
+          await (admin as any).from("guardians").update({ email, phone, first_name: firstName }).eq("id", existingGuardian.id);
           guardianId = existingGuardian.id;
         } else {
           const { data: byEmail } = await (admin as any)
             .from("guardians").select("id").eq("email", email).maybeSingle() as { data: { id: string } | null };
 
           if (byEmail) {
-            await (admin as any).from("guardians").update({ wonde_id: contact.id, phone: phone ?? undefined }).eq("id", byEmail.id);
+            await (admin as any).from("guardians").update({ wonde_id: contact.id, phone: phone ?? undefined, first_name: firstName }).eq("id", byEmail.id);
             guardianId = byEmail.id;
           } else {
             const { data: newGuardian } = await (admin as any)
               .from("guardians")
-              .insert({ email, phone, wonde_id: contact.id })
+              .insert({ email, phone, first_name: firstName, wonde_id: contact.id })
               .select("id")
               .single() as { data: { id: string } | null };
             if (!newGuardian) continue;
