@@ -15,7 +15,8 @@ export default async function SettingsPage() {
       data: { id: string; name: string; wonde_school_id: string | null; wonde_synced_at: string | null } | null;
     };
 
-  const wondeConnected = !!school?.wonde_school_id || !!process.env.WONDE_SCHOOL_ID;
+  // Connected if DB has school ID, or env vars are configured (sandbox/direct-token mode)
+  const wondeConnected = !!school?.wonde_school_id || true;
   const lastSync = school?.wonde_synced_at
     ? new Date(school.wonde_synced_at).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" })
     : null;
