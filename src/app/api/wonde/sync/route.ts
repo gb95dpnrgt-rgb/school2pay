@@ -1,11 +1,10 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createClient as createAdminClient } from "@supabase/supabase-js";
-import { wondeYearGroup } from "@/lib/wonde";
+import { fetchWondeStudents, wondeYearGroup } from "@/lib/wonde";
 import type { Database } from "@/lib/supabase/types";
 
-const WONDE_BASE = "https://api.wonde.com/v1.0";
-const BATCH_SIZE = 15; // students per request — keeps well within 10s Hobby limit
+const BATCH_SIZE = 20; // students processed per request
 
 function getAdmin() {
   return createAdminClient<Database>(
@@ -13,19 +12,6 @@ function getAdmin() {
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
     { auth: { autoRefreshToken: false, persistSession: false } }
   );
-}
-
-// Fetch a single page of students from Wonde
-async function fetchWondePage(wondeSchoolId: string, token: string, page: number) {
-  const url = `${WONDE_BASE}/schools/${wondeSchoolId}/students?include=contacts,year&per_page=${BATCH_SIZE}&page=${page}`;
-  const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`Wonde API error ${res.status}: ${text}`);
-  }
-  const json = await res.json();
-  const totalPages = json.meta?.pagination?.total_pages ?? 1;
-  return { students: json.data ?? [], totalPages };
 }
 
 export async function POST(req: Request) {
@@ -45,9 +31,9 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Wonde not connected" }, { status: 400 });
   }
 
-  // page param allows client to loop through all pages
+  // offset lets client step through students in batches
   const body = await req.json().catch(() => ({}));
-  const page: number = body.page ?? 1;
+  const offset: number = body.offset ?? 0;
 
   const admin = getAdmin();
   let studentsCreated = 0;
@@ -55,9 +41,12 @@ export async function POST(req: Request) {
   let guardiansCreated = 0;
 
   try {
-    const { students: wondeStudents, totalPages } = await fetchWondePage(wondeSchoolId, wondeToken, page);
+    // Fetch all students from Wonde (handles pagination internally, fast API call)
+    const allStudents = await fetchWondeStudents(wondeSchoolId, wondeToken);
+    const total = allStudents.length;
+    const batch = allStudents.slice(offset, offset + BATCH_SIZE);
 
-    for (const ws of wondeStudents) {
+    for (const ws of batch) {
       const yearGroup = wondeYearGroup(ws);
 
       const { data: existing } = await (admin as any)
@@ -134,7 +123,8 @@ export async function POST(req: Request) {
       }
     }
 
-    const done = page >= totalPages;
+    const nextOffset = offset + BATCH_SIZE;
+    const done = nextOffset >= total;
 
     if (done) {
       await (admin as any)
@@ -145,9 +135,10 @@ export async function POST(req: Request) {
 
     return NextResponse.json({
       ok: true,
-      page,
-      total_pages: totalPages,
+      offset,
+      next_offset: done ? null : nextOffset,
       done,
+      total,
       students_created: studentsCreated,
       students_updated: studentsUpdated,
       guardians_created: guardiansCreated,

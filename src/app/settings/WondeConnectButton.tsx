@@ -12,18 +12,19 @@ export default function WondeConnectButton({ connected }: { connected: boolean }
     setSyncResult(null);
     setProgress(null);
 
-    let page = 1;
+    let offset = 0;
     let totalCreated = 0;
     let totalUpdated = 0;
     let totalGuardians = 0;
+    let grandTotal = 0;
 
     try {
       while (true) {
-        setProgress(`Syncing page ${page}…`);
+        setProgress(`Syncing students ${offset + 1}…`);
         const res = await fetch("/api/wonde/sync", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ page }),
+          body: JSON.stringify({ offset }),
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error ?? "Sync failed");
@@ -31,13 +32,16 @@ export default function WondeConnectButton({ connected }: { connected: boolean }
         totalCreated += data.students_created ?? 0;
         totalUpdated += data.students_updated ?? 0;
         totalGuardians += data.guardians_created ?? 0;
+        grandTotal = data.total ?? grandTotal;
 
-        if (data.done) break;
-        page++;
+        setProgress(`Synced ${Math.min(offset + 20, grandTotal)} of ${grandTotal} students…`);
+
+        if (data.done || data.next_offset == null) break;
+        offset = data.next_offset;
       }
 
       setSyncResult(
-        `Sync complete: ${totalUpdated} students updated, ${totalCreated} added, ${totalGuardians} guardians imported`
+        `Sync complete — ${totalCreated} students added, ${totalUpdated} updated, ${totalGuardians} guardians imported`
       );
     } catch (e: any) {
       setSyncResult(`Error: ${e.message}`);
