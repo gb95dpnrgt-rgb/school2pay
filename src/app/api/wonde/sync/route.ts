@@ -17,10 +17,9 @@ export async function POST() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorised" }, { status: 401 });
 
-  // Fetch school with Wonde credentials
   const { data: school } = await (supabase as any)
     .from("schools")
-    .select("id, school_id, wonde_school_id, wonde_token")
+    .select("id, wonde_school_id, wonde_token")
     .single() as { data: { id: string; wonde_school_id: string | null; wonde_token: string | null } | null };
 
   // Fall back to env vars for sandbox / direct token auth
@@ -32,7 +31,6 @@ export async function POST() {
   }
 
   const admin = getAdmin();
-
   let studentsCreated = 0;
   let studentsUpdated = 0;
   let guardiansCreated = 0;
@@ -43,12 +41,11 @@ export async function POST() {
     for (const ws of wondeStudents) {
       const yearGroup = wondeYearGroup(ws);
 
-      // Upsert student by wonde_id
       const { data: existing } = await (admin as any)
         .from("students")
         .select("id")
         .eq("wonde_id", ws.id)
-        .eq("school_id", school.id)
+        .eq("school_id", school!.id)
         .maybeSingle() as { data: { id: string } | null };
 
       let studentId: string;
@@ -63,7 +60,7 @@ export async function POST() {
       } else {
         const { data: newStudent } = await (admin as any)
           .from("students")
-          .insert({ school_id: school.id, first_name: ws.forename, year_group: yearGroup, wonde_id: ws.id })
+          .insert({ school_id: school!.id, first_name: ws.forename, year_group: yearGroup, wonde_id: ws.id })
           .select("id")
           .single() as { data: { id: string } | null };
         if (!newStudent) continue;
@@ -71,7 +68,6 @@ export async function POST() {
         studentsCreated++;
       }
 
-      // Upsert guardians (contacts)
       const contacts = ws.contacts?.data ?? [];
       for (const contact of contacts) {
         const email = contact.emails?.data?.[0]?.address ?? null;
@@ -79,9 +75,8 @@ export async function POST() {
           ?? contact.phones?.data?.[0]?.phone
           ?? null;
 
-        if (!email) continue; // can't send magic link without email
+        if (!email) continue;
 
-        // Find or create guardian by wonde_id
         let guardianId: string;
         const { data: existingGuardian } = await (admin as any)
           .from("guardians")
@@ -90,24 +85,14 @@ export async function POST() {
           .maybeSingle() as { data: { id: string } | null };
 
         if (existingGuardian) {
-          await (admin as any)
-            .from("guardians")
-            .update({ email, phone })
-            .eq("id", existingGuardian.id);
+          await (admin as any).from("guardians").update({ email, phone }).eq("id", existingGuardian.id);
           guardianId = existingGuardian.id;
         } else {
-          // Check if guardian already exists by email (manual entry may pre-exist)
           const { data: byEmail } = await (admin as any)
-            .from("guardians")
-            .select("id")
-            .eq("email", email)
-            .maybeSingle() as { data: { id: string } | null };
+            .from("guardians").select("id").eq("email", email).maybeSingle() as { data: { id: string } | null };
 
           if (byEmail) {
-            await (admin as any)
-              .from("guardians")
-              .update({ wonde_id: contact.id, phone: phone ?? undefined })
-              .eq("id", byEmail.id);
+            await (admin as any).from("guardians").update({ wonde_id: contact.id, phone: phone ?? undefined }).eq("id", byEmail.id);
             guardianId = byEmail.id;
           } else {
             const { data: newGuardian } = await (admin as any)
@@ -121,7 +106,6 @@ export async function POST() {
           }
         }
 
-        // Ensure guardian_student link exists
         await (admin as any)
           .from("guardian_student")
           .upsert(
@@ -131,11 +115,10 @@ export async function POST() {
       }
     }
 
-    // Record last sync time
     await (admin as any)
       .from("schools")
       .update({ wonde_synced_at: new Date().toISOString() })
-      .eq("id", school.id);
+      .eq("id", school!.id);
 
     return NextResponse.json({
       ok: true,
