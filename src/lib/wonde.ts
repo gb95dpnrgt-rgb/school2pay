@@ -86,7 +86,7 @@ export function wondeAuthoriseUrl(state: string): string {
     // Request read access to students and contacts
     scope: "read:students read:contacts read:classes",
   });
-  return `https://edu.wonde.com/oauth/authorize?${params.toString()}`;
+  return `https://apps.wonde.com/oauth/authorize?${params.toString()}`;
 }
 
 // Map a Wonde year code to a display string
