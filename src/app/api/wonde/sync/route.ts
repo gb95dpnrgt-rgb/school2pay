@@ -26,9 +26,14 @@ export async function POST(req: Request) {
 
   const wondeSchoolId = school?.wonde_school_id ?? process.env.WONDE_SCHOOL_ID;
   const wondeToken = school?.wonde_token ?? process.env.WONDE_TOKEN;
+  // Use a fallback school ID for env-var mode (sandbox) — school.id still needed for DB writes
+  const schoolDbId = school?.id ?? null;
 
   if (!wondeSchoolId || !wondeToken) {
     return NextResponse.json({ error: "Wonde not connected" }, { status: 400 });
+  }
+  if (!schoolDbId) {
+    return NextResponse.json({ error: "No school found for this admin account" }, { status: 400 });
   }
 
   // offset lets client step through students in batches
@@ -53,7 +58,7 @@ export async function POST(req: Request) {
         .from("students")
         .select("id")
         .eq("wonde_id", ws.id)
-        .eq("school_id", school!.id)
+        .eq("school_id", schoolDbId)
         .maybeSingle() as { data: { id: string } | null };
 
       let studentId: string;
@@ -68,7 +73,7 @@ export async function POST(req: Request) {
       } else {
         const { data: newStudent } = await (admin as any)
           .from("students")
-          .insert({ school_id: school!.id, first_name: ws.forename, year_group: yearGroup, wonde_id: ws.id })
+          .insert({ school_id: schoolDbId, first_name: ws.forename, year_group: yearGroup, wonde_id: ws.id })
           .select("id")
           .single() as { data: { id: string } | null };
         if (!newStudent) continue;
@@ -130,7 +135,7 @@ export async function POST(req: Request) {
       await (admin as any)
         .from("schools")
         .update({ wonde_synced_at: new Date().toISOString() })
-        .eq("id", school!.id);
+        .eq("id", schoolDbId);
     }
 
     return NextResponse.json({
