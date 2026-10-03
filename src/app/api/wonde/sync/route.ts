@@ -19,10 +19,12 @@ export async function POST(req: Request) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorised" }, { status: 401 });
 
-  const { data: school } = await (supabase as any)
+  // If multiple schools exist, prefer the one with wonde_school_id set
+  const { data: schools } = await (supabase as any)
     .from("schools")
-    .select("id, wonde_school_id, wonde_token")
-    .single() as { data: { id: string; wonde_school_id: string | null; wonde_token: string | null } | null };
+    .select("id, wonde_school_id, wonde_token") as { data: { id: string; wonde_school_id: string | null; wonde_token: string | null }[] | null };
+
+  const school = schools?.find((s) => s.wonde_school_id) ?? schools?.[0] ?? null;
 
   const wondeSchoolId = school?.wonde_school_id ?? process.env.WONDE_SCHOOL_ID;
   const wondeToken = school?.wonde_token ?? process.env.WONDE_TOKEN;
