@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createClient as createAdminClient } from "@supabase/supabase-js";
-import { fetchWondeStudents, wondeYearGroup } from "@/lib/wonde";
+import { wondeYearGroup } from "@/lib/wonde";
 import type { Database } from "@/lib/supabase/types";
 
-export const maxDuration = 60; // seconds — requires Vercel Pro; on hobby this is capped at 10s
+const WONDE_BASE = "https://api.wonde.com/v1.0";
+const BATCH_SIZE = 15; // students per request — keeps well within 10s Hobby limit
 
 function getAdmin() {
   return createAdminClient<Database>(
@@ -14,7 +15,20 @@ function getAdmin() {
   );
 }
 
-export async function POST() {
+// Fetch a single page of students from Wonde
+async function fetchWondePage(wondeSchoolId: string, token: string, page: number) {
+  const url = `${WONDE_BASE}/schools/${wondeSchoolId}/students?include=contacts,year&per_page=${BATCH_SIZE}&page=${page}`;
+  const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Wonde API error ${res.status}: ${text}`);
+  }
+  const json = await res.json();
+  const totalPages = json.meta?.pagination?.total_pages ?? 1;
+  return { students: json.data ?? [], totalPages };
+}
+
+export async function POST(req: Request) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorised" }, { status: 401 });
@@ -24,7 +38,6 @@ export async function POST() {
     .select("id, wonde_school_id, wonde_token")
     .single() as { data: { id: string; wonde_school_id: string | null; wonde_token: string | null } | null };
 
-  // Fall back to env vars for sandbox / direct token auth
   const wondeSchoolId = school?.wonde_school_id ?? process.env.WONDE_SCHOOL_ID;
   const wondeToken = school?.wonde_token ?? process.env.WONDE_TOKEN;
 
@@ -32,13 +45,17 @@ export async function POST() {
     return NextResponse.json({ error: "Wonde not connected" }, { status: 400 });
   }
 
+  // page param allows client to loop through all pages
+  const body = await req.json().catch(() => ({}));
+  const page: number = body.page ?? 1;
+
   const admin = getAdmin();
   let studentsCreated = 0;
   let studentsUpdated = 0;
   let guardiansCreated = 0;
 
   try {
-    const wondeStudents = await fetchWondeStudents(wondeSchoolId, wondeToken);
+    const { students: wondeStudents, totalPages } = await fetchWondePage(wondeSchoolId, wondeToken, page);
 
     for (const ws of wondeStudents) {
       const yearGroup = wondeYearGroup(ws);
@@ -73,7 +90,7 @@ export async function POST() {
       const contacts = ws.contacts?.data ?? [];
       for (const contact of contacts) {
         const email = contact.emails?.data?.[0]?.address ?? null;
-        const phone = contact.phones?.data?.find((p) => p.type === "mobile")?.phone
+        const phone = contact.phones?.data?.find((p: any) => p.type === "mobile")?.phone
           ?? contact.phones?.data?.[0]?.phone
           ?? null;
 
@@ -117,17 +134,23 @@ export async function POST() {
       }
     }
 
-    await (admin as any)
-      .from("schools")
-      .update({ wonde_synced_at: new Date().toISOString() })
-      .eq("id", school!.id);
+    const done = page >= totalPages;
+
+    if (done) {
+      await (admin as any)
+        .from("schools")
+        .update({ wonde_synced_at: new Date().toISOString() })
+        .eq("id", school!.id);
+    }
 
     return NextResponse.json({
       ok: true,
+      page,
+      total_pages: totalPages,
+      done,
       students_created: studentsCreated,
       students_updated: studentsUpdated,
       guardians_created: guardiansCreated,
-      total: wondeStudents.length,
     });
   } catch (e: any) {
     console.error("[wonde/sync] error:", e);
