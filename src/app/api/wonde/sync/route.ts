@@ -23,7 +23,11 @@ export async function POST() {
     .select("id, school_id, wonde_school_id, wonde_token")
     .single() as { data: { id: string; wonde_school_id: string | null; wonde_token: string | null } | null };
 
-  if (!school?.wonde_school_id || !school?.wonde_token) {
+  // Fall back to env vars for sandbox / direct token auth
+  const wondeSchoolId = school?.wonde_school_id ?? process.env.WONDE_SCHOOL_ID;
+  const wondeToken = school?.wonde_token ?? process.env.WONDE_TOKEN;
+
+  if (!wondeSchoolId || !wondeToken) {
     return NextResponse.json({ error: "Wonde not connected" }, { status: 400 });
   }
 
@@ -34,7 +38,7 @@ export async function POST() {
   let guardiansCreated = 0;
 
   try {
-    const wondeStudents = await fetchWondeStudents(school.wonde_school_id, school.wonde_token);
+    const wondeStudents = await fetchWondeStudents(wondeSchoolId, wondeToken);
 
     for (const ws of wondeStudents) {
       const yearGroup = wondeYearGroup(ws);
