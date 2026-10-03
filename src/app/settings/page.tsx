@@ -15,7 +15,7 @@ export default async function SettingsPage() {
       data: { id: string; name: string; wonde_school_id: string | null; wonde_synced_at: string | null } | null;
     };
 
-  const wondeConnected = !!school?.wonde_school_id;
+  const wondeConnected = !!school?.wonde_school_id || !!process.env.WONDE_SCHOOL_ID;
   const lastSync = school?.wonde_synced_at
     ? new Date(school.wonde_synced_at).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" })
     : null;
@@ -53,7 +53,7 @@ export default async function SettingsPage() {
               <div className="flex items-center gap-2">
                 <span className="inline-flex h-2 w-2 rounded-full bg-green-500" />
                 <span className="text-sm font-medium text-green-700">Connected</span>
-                <span className="text-xs text-gray-400">Wonde school ID: {school?.wonde_school_id}</span>
+                <span className="text-xs text-gray-400">Wonde school ID: {school?.wonde_school_id ?? process.env.WONDE_SCHOOL_ID}</span>
               </div>
               {lastSync && (
                 <p className="text-xs text-gray-500">Last sync: {lastSync}</p>
